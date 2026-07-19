@@ -1,0 +1,48 @@
+{
+  "protocol": "fixed",
+  "transfer_mixed": false,
+  "data_source": "D:\\learning\\TOR\\datasets\\CW\\CW.npz",
+  "target_run_dir": "results\\dmmpv3_legacydirect_fused_fullcw_seed0_20260719_134324",
+  "adaptive_source_run_dir": "results\\dmmpv3_legacydirect_fused_fullcw_seed0_20260719_134324",
+  "budget": 0.3,
+  "keep_ratio": 1.0,
+  "adaptive_source_budget": 0.3,
+  "adaptive_source_keep_ratio": 1.0,
+  "defense_artifact_signature_digest": "809f17868e56e0b2",
+  "adaptive_source_defense_artifact_signature_digest": "809f17868e56e0b2",
+  "source_profiles": [],
+  "target_profile": "test_000",
+  "quality_gate": {
+    "min_clean_accuracy": 0.85,
+    "max_defended_accuracy": 0.4,
+    "all_passed": false
+  },
+  "rows": [
+    {
+      "protocol": "fixed",
+      "attacker": "DF",
+      "source_user_count": 0,
+      "source_profiles": "",
+      "target_profile": "test_000",
+      "profile_overlap": 0.0,
+      "clean_acc": 0.9739681938659599,
+      "fresh_defended_acc": 0.18449450965543354,
+      "visible_bandwidth": 0.28977940004912034,
+      "raw_retention": 1.0,
+      "quality_gate_passed": 1
+    },
+    {
+      "protocol": "fixed",
+      "attacker": "RF",
+      "source_user_count": 0,
+      "source_profiles": "",
+      "target_profile": "test_000",
+      "profile_overlap": 0.0,
+      "clean_acc": 0.9786065884134797,
+      "fresh_defended_acc": 0.4482519247759687,
+      "visible_bandwidth": 0.28977940004912034,
+      "raw_retention": 1.0,
+      "quality_gate_passed": 0
+    }
+  ]
+}

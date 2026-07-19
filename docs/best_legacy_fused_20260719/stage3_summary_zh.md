@@ -1,0 +1,30 @@
+# V3 Stage 3: Budget-performance-guided diffusion refinement
+
+- Pareto samples: 10564
+- budgets: 0.30
+- keep ratios: 1.0
+- selected budget: 0.3000
+- selected keep ratio: 1.0000
+- selected visible bandwidth: 0.289897
+- selected raw retention: 1.000000
+- selected dummy incoming share: 0.060999
+- selected template entropy: 0.460392
+- selected label-free attack pressure: 0.755683
+- selected rendered label-free pressure: 0.755683
+- selected RF label-free pressure: 0.389752
+- selected rendered RF accuracy: 0.389530
+- selected diagnostic conservative attack acc: 0.389530
+- selected policy valid: 0
+- label-free pressure quality gate: 0.450000
+- diagnostic accuracy gate: 0.400000
+- rendered RF accuracy gate: 0.400000
+- reliable fixed probe accuracy gate: 0.400000
+- all quality gates passed: 0
+- reliable fixed probes: 0
+- selected reliable fixed probe worst acc: 0.000000
+- selected reliable fixed RF probe acc: 0.000000
+- selected reliable fixed RF probe available: 0
+- TAM distribution L1 shift: 0.234666
+- TAM cosine distance: 0.173410
+- TAM incoming distribution L1 shift: 0.040114
+- TAM outgoing distribution L1 shift: 0.524674

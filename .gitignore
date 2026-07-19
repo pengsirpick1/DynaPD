@@ -1,0 +1,32 @@
+# Python/runtime noise
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Local experiment outputs and heavyweight artifacts
+results/
+logs/
+models/
+*.pt
+*.pth
+*.ckpt
+*.npz
+*.npy
+*.pkl
+*.pickle
+
+# Local/editor/system files
+.codegraph/
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Data should stay outside the code snapshot
+/datasets/
+/data/
