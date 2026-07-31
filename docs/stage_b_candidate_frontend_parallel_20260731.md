@@ -1,4 +1,4 @@
-# Stage B Candidate Frontend And Parallel Export Probe
+﻿# Stage B Candidate Frontend And Parallel Export Probe
 
 Date: 2026-07-31
 
@@ -7,7 +7,7 @@ Date: 2026-07-31
 Updated candidate materialization and scheduling utilities:
 
 ```text
-dmmp/stage_b/expanded_generator.py
+dynapd/stage_b/expanded_generator.py
 scripts/stage_b_run_b2e_diverse_search.py
 scripts/stage_b_export_teacher_trajectories.py
 scripts/stage_b_export_teacher_trajectories_active_batch.py

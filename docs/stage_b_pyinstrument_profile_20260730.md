@@ -1,4 +1,4 @@
-# Stage B Pyinstrument Profile, 2026-07-30
+﻿# Stage B Pyinstrument Profile, 2026-07-30
 
 Profiler:
 

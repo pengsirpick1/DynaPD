@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """Train the learned Stage B candidate-scoring policy from Teacher records."""
 
 from __future__ import annotations
@@ -21,10 +21,10 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from dmmp.stage_b.policy_data import ACTION_FEATURE_NAMES, STATE_FEATURE_NAMES, load_record
-from dmmp.stage_b.policy_model import CandidateScoringPolicy, PolicyModelConfig
-from dmmp.utils import resolve_device, set_seed
-from dmmp.utils.config import DEFAULT_OUTPUT_DIR
+from dynapd.stage_b.policy_data import ACTION_FEATURE_NAMES, STATE_FEATURE_NAMES, load_record
+from dynapd.stage_b.policy_model import CandidateScoringPolicy, PolicyModelConfig
+from dynapd.utils import resolve_device, set_seed
+from dynapd.utils.config import DEFAULT_OUTPUT_DIR
 
 POLICY_INPUT_FIELDS = [
     "state_tensor",

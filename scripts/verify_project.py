@@ -1,9 +1,4 @@
-"""Verify the DMMPv3 harness structure.
-
-This script is intentionally lightweight: it checks required directories,
-required documents, and guarded entrypoints. It does not train or evaluate
-models.
-"""
+"""Verify the slim DynaPD Stage B release structure."""
 
 from __future__ import annotations
 
@@ -16,103 +11,72 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 REQUIRED_FILES = [
-    "AGENTS.md",
     "README.md",
     "requirements.txt",
-    "docs/method_spec.md",
-    "docs/experiment_protocol.md",
-    "docs/project_map.md",
-    "docs/implementation_index.md",
-    "docs/runbook.md",
-    "docs/decisions.md",
-    "docs/model_registry.md",
-    "tasks/current_task.md",
-    "dmmp/__init__.py",
-    "dmmp/constraints/__init__.py",
-    "dmmp/constraints/combination_catalogue.py",
-    "dmmp/constraints/preferences.py",
-    "dmmp/constraints/user_profiles.py",
-    "dmmp/data/__init__.py",
-    "dmmp/data/cw.py",
-    "dmmp/diffusion/__init__.py",
-    "dmmp/diffusion/models.py",
-    "dmmp/diffusion/pipeline.py",
-    "dmmp/diffusion/policy.py",
-    "dmmp/diffusion/profile_pipeline.py",
-    "dmmp/encoders/__init__.py",
-    "dmmp/encoders/condition_encoders.py",
-    "dmmp/encoders/leakage.py",
-    "dmmp/encoders/prefix.py",
-    "dmmp/evaluation/__init__.py",
-    "dmmp/evaluation/attack_models.py",
-    "dmmp/evaluation/attacks.py",
-    "dmmp/evaluation/profile_attacks.py",
-    "dmmp/guidance/__init__.py",
-    "dmmp/guidance/candidate_scorer.py",
-    "dmmp/guidance/diffusion_guidance.py",
-    "dmmp/guidance/strong_surrogates.py",
-    "dmmp/losses/__init__.py",
-    "dmmp/projection/__init__.py",
-    "dmmp/projection/padding.py",
-    "dmmp/renderer/__init__.py",
-    "dmmp/utils/__init__.py",
-    "dmmp/utils/common.py",
-    "dmmp/utils/config.py",
-    "scripts/train_defense.py",
-    "scripts/run_defense.py",
-    "scripts/run_attack_eval.py",
-    "scripts/evaluate_fixed.py",
-    "scripts/train_mixed_attackers.py",
-    "scripts/evaluate_mixed.py",
-    "scripts/resume_stage3.py",
-    "scripts/sweep_guidance.py",
-    "scripts/validate_strong_surrogates.py",
-    "scripts/validate_v4.py",
-    "scripts/verify_project.py",
+    "pyproject.toml",
+    "dynapd/__init__.py",
+    "dynapd/data/cw.py",
+    "dynapd/evaluation/attack_models.py",
+    "dynapd/projection/padding.py",
+    "dynapd/stage_a/additive_probe.py",
+    "dynapd/stage_a/faithfulness.py",
+    "dynapd/stage_a/mask_ops.py",
+    "dynapd/stage_a/modeling.py",
+    "dynapd/stage_b/action_selector.py",
+    "dynapd/stage_b/expanded_generator.py",
+    "dynapd/stage_b/objectives.py",
+    "dynapd/stage_b/policy_data.py",
+    "dynapd/stage_b/policy_model.py",
+    "dynapd/stage_b/smoothing.py",
+    "dynapd/utils/common.py",
+    "dynapd/utils/config.py",
+    "docs/stage_b2d_strategy_versions.md",
+    "docs/stage_b_vectorized_candidate_selection_20260731.md",
+    "docs/stage_b_candidate_frontend_parallel_20260731.md",
+    "docs/stage_b_latency_overhead_audit_20260731.md",
+    "docs/stage_b_pyinstrument_profile_20260730.md",
+    "scripts/stage_b_prepare_fast_keypoint_archive.py",
+    "scripts/stage_b_build_policy_dataset.py",
+    "scripts/stage_b_export_teacher_trajectories.py",
+    "scripts/stage_b_launch_teacher_shards_parallel.py",
+    "scripts/stage_b_probe_parallel_teacher_workers.py",
+    "scripts/stage_b_train_candidate_policy.py",
+    "scripts/stage_b_eval_candidate_policy_offline.py",
+    "scripts/stage_b_run_student_policy_controller.py",
 ]
 
 REQUIRED_DIRS = [
-    "dmmp/encoders",
-    "dmmp/diffusion",
-    "dmmp/guidance",
-    "dmmp/projection",
-    "dmmp/renderer",
-    "dmmp/constraints",
-    "dmmp/losses",
-    "dmmp/data",
-    "dmmp/evaluation",
-    "dmmp/utils",
-    "configs/defense",
-    "configs/attackers",
-    "configs/experiments",
-    "models/defense",
-    "models/attackers/fixed/df",
-    "models/attackers/fixed/rf",
-    "models/attackers/mixed/df",
-    "models/attackers/mixed/rf",
-    "results/training",
-    "results/fixed_evaluation",
-    "results/mixed_evaluation",
-    "results/ablation",
-    "results/failed_runs",
-    "logs",
-    "tests",
+    "dynapd/data",
+    "dynapd/evaluation",
+    "dynapd/projection",
+    "dynapd/stage_a",
+    "dynapd/stage_b",
+    "dynapd/utils",
+    "scripts",
+    "docs",
+]
+
+FORBIDDEN_PATHS = [
+    "dynapd/diffusion",
+    "dynapd/purifier",
+    "dynapd/target_policy",
+    "configs",
 ]
 
 
 def main() -> None:
     missing_files = [path for path in REQUIRED_FILES if not (ROOT / path).is_file()]
     missing_dirs = [path for path in REQUIRED_DIRS if not (ROOT / path).is_dir()]
-    config_errors: list[str] = []
-    from dmmp.utils.config import DefenseConfig
+    forbidden = [path for path in FORBIDDEN_PATHS if (ROOT / path).exists()]
 
-    cfg = DefenseConfig()
-    if str(cfg.version).lower() != "v3":
-        config_errors.append(f"DefenseConfig.version should default to v3, got {cfg.version!r}")
+    from dynapd.utils.config import DEFAULT_OUTPUT_DIR
+
+    config_errors: list[str] = []
     expected_output = (ROOT / "results").resolve()
-    if Path(cfg.output_dir).resolve() != expected_output:
-        config_errors.append(f"DefenseConfig.output_dir should default to {expected_output}, got {Path(cfg.output_dir).resolve()}")
-    if missing_files or missing_dirs or config_errors:
+    if Path(DEFAULT_OUTPUT_DIR).resolve() != expected_output:
+        config_errors.append(f"DEFAULT_OUTPUT_DIR should be {expected_output}, got {Path(DEFAULT_OUTPUT_DIR).resolve()}")
+
+    if missing_files or missing_dirs or forbidden or config_errors:
         if missing_files:
             print("Missing files:")
             for path in missing_files:
@@ -121,12 +85,16 @@ def main() -> None:
             print("Missing directories:")
             for path in missing_dirs:
                 print(f"  - {path}")
+        if forbidden:
+            print("Forbidden release paths exist:")
+            for path in forbidden:
+                print(f"  - {path}")
         if config_errors:
             print("Configuration errors:")
             for error in config_errors:
                 print(f"  - {error}")
         raise SystemExit(1)
-    print(f"DMMPv3 harness verification passed: {ROOT}")
+    print(f"DynaPD slim release verification passed: {ROOT}")
 
 
 if __name__ == "__main__":

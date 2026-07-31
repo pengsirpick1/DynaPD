@@ -1,4 +1,4 @@
-"""Run Stage B2-D keypoint-guided dual-actuator dynamic controller."""
+﻿"""Run Stage B2-D keypoint-guided dual-actuator dynamic controller."""
 
 from __future__ import annotations
 
@@ -17,16 +17,16 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from dmmp.data import load_cw_data
-from dmmp.evaluation.attack_models import build_rf_tam_input, crop_or_pad_2d
-from dmmp.projection.padding import PaddingTemplate, render_batch_variable
-from dmmp.stage_a.faithfulness import predict_probabilities
-from dmmp.stage_a.modeling import load_stage_a_attacker
-from dmmp.stage_b.expanded_generator import ExpandedAction, action_cost, action_identity, generate_expanded_actions
-from dmmp.stage_b.objectives import ObjectiveWeights, original_class_objective_delta, original_class_utility, probability_metrics
-from dmmp.stage_b.smoothing import causal_delay_trace, keypoint_windows, trace_to_tam
-from dmmp.utils import resolve_device, set_seed, write_csv, write_json
-from dmmp.utils.config import DEFAULT_DATA_ROOT, DEFAULT_OUTPUT_DIR, parse_csv_floats, parse_csv_ints, parse_csv_strings
+from dynapd.data import load_cw_data
+from dynapd.evaluation.attack_models import build_rf_tam_input, crop_or_pad_2d
+from dynapd.projection.padding import PaddingTemplate, render_batch_variable
+from dynapd.stage_a.faithfulness import predict_probabilities
+from dynapd.stage_a.modeling import load_stage_a_attacker
+from dynapd.stage_b.expanded_generator import ExpandedAction, action_cost, action_identity, generate_expanded_actions
+from dynapd.stage_b.objectives import ObjectiveWeights, original_class_objective_delta, original_class_utility, probability_metrics
+from dynapd.stage_b.smoothing import causal_delay_trace, keypoint_windows, trace_to_tam
+from dynapd.utils import resolve_device, set_seed, write_csv, write_json
+from dynapd.utils.config import DEFAULT_DATA_ROOT, DEFAULT_OUTPUT_DIR, parse_csv_floats, parse_csv_ints, parse_csv_strings
 
 
 DEFAULT_FIXED_DF = r"D:\learning\TOR\results\dmmp2_v5_fixed_oriented_seed0_bwo30\attack_eval\fixed\df\fixed_df_checkpoint.pt"

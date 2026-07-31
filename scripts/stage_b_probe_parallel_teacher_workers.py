@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """Probe Teacher-export parallel workers while monitoring GPU memory/utilization."""
 
 from __future__ import annotations

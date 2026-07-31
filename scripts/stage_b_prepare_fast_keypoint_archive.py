@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """Prepare TAM/RF-prob/fast-keypoint archives for Stage B at CW scale."""
 
 from __future__ import annotations
@@ -20,11 +20,11 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from dmmp.data import load_cw_data
-from dmmp.evaluation.attack_models import build_rf_tam_input
-from dmmp.stage_a.modeling import load_stage_a_attacker
-from dmmp.utils import resolve_device, set_seed
-from dmmp.utils.config import DEFAULT_DATA_ROOT, DEFAULT_OUTPUT_DIR
+from dynapd.data import load_cw_data
+from dynapd.evaluation.attack_models import build_rf_tam_input
+from dynapd.stage_a.modeling import load_stage_a_attacker
+from dynapd.utils import resolve_device, set_seed
+from dynapd.utils.config import DEFAULT_DATA_ROOT, DEFAULT_OUTPUT_DIR
 
 from scripts.stage_b_run_b2e_diverse_search import _default_checkpoint
 

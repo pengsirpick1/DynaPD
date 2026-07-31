@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """Stage B2-E: diverse candidate exposure and relaxed two-step search."""
 
 from __future__ import annotations
@@ -23,9 +23,9 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from dmmp.stage_a.faithfulness import predict_probabilities
-from dmmp.stage_a.modeling import load_stage_a_attacker
-from dmmp.stage_b.expanded_generator import (
+from dynapd.stage_a.faithfulness import predict_probabilities
+from dynapd.stage_a.modeling import load_stage_a_attacker
+from dynapd.stage_b.expanded_generator import (
     CandidateDescriptor,
     ExpandedAction,
     action_cost,
@@ -35,9 +35,9 @@ from dmmp.stage_b.expanded_generator import (
     generate_expanded_actions,
     materialize_candidate_descriptors,
 )
-from dmmp.stage_b.objectives import ObjectiveWeights, original_class_margin, original_class_objective_delta, probability_metrics
-from dmmp.utils import resolve_device, set_seed
-from dmmp.utils.config import DEFAULT_DATA_ROOT, DEFAULT_OUTPUT_DIR
+from dynapd.stage_b.objectives import ObjectiveWeights, original_class_margin, original_class_objective_delta, probability_metrics
+from dynapd.utils import resolve_device, set_seed
+from dynapd.utils.config import DEFAULT_DATA_ROOT, DEFAULT_OUTPUT_DIR
 
 from scripts.stage_b_run_dual_actuator import (
     EvalState,

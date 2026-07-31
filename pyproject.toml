@@ -5,17 +5,14 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "dynapd"
 version = "0.1.0"
-description = "Dynamic padding defense research code for website fingerprinting experiments."
+description = "Stage B dynamic padding defense research code for website fingerprinting experiments."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
   "numpy",
   "torch",
-  "scikit-learn",
   "tqdm",
-  "matplotlib",
-  "PyYAML",
 ]
 
 [tool.setuptools.packages.find]
-include = ["dmmp*"]
+include = ["dynapd*"]

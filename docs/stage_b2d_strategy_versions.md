@@ -1,4 +1,4 @@
-# Stage B2-D Strategy Version Registry
+﻿# Stage B2-D Strategy Version Registry
 
 This file is the local memory anchor for Stage B2-D strategy iterations.
 
@@ -37,8 +37,8 @@ Implementation anchors:
 ```text
 scripts/stage_b_run_target_min_cost.py
 scripts/stage_b_run_dual_actuator.py
-dmmp/stage_b/expanded_generator.py
-dmmp/stage_b/smoothing.py
+dynapd/stage_b/expanded_generator.py
+dynapd/stage_b/smoothing.py
 ```
 
 Related audit and visualization helpers created during the V1 review:
@@ -83,7 +83,7 @@ Implementation anchors:
 
 ```text
 scripts/stage_b_run_b2e_diverse_search.py
-dmmp/stage_b/expanded_generator.py
+dynapd/stage_b/expanded_generator.py
 ```
 
 Preliminary V2 n=16 screening:
@@ -186,7 +186,7 @@ Recorded on: 2026-07-29
 Implementation anchors:
 
 ```text
-dmmp/stage_b/expanded_generator.py
+dynapd/stage_b/expanded_generator.py
 scripts/stage_b_run_b2e_diverse_search.py
 scripts/stage_b_export_teacher_trajectories.py
 scripts/stage_b_audit_teacher_shard.py
@@ -284,8 +284,8 @@ scripts/stage_b_build_policy_dataset.py
 scripts/stage_b_export_teacher_trajectories.py
 scripts/stage_b_train_candidate_policy.py
 scripts/stage_b_eval_candidate_policy_offline.py
-dmmp/stage_b/policy_data.py
-dmmp/stage_b/policy_model.py
+dynapd/stage_b/policy_data.py
+dynapd/stage_b/policy_model.py
 ```
 
 Policy split audit:
@@ -728,7 +728,7 @@ Recorded on: 2026-07-29
 Implementation:
 
 ```text
-dmmp/stage_b/expanded_generator.py
+dynapd/stage_b/expanded_generator.py
 scripts/stage_b_probe_active_state_gpu_batch.py
 scripts/stage_b_run_b2e_diverse_search.py
 scripts/stage_b_export_teacher_trajectories.py

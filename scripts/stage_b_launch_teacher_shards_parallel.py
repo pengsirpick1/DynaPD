@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
 import subprocess
 import sys
 import time
@@ -28,6 +29,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--launcher_name", default="")
     parser.add_argument("--run_prefix", default="")
     parser.add_argument("--python_exe", default=sys.executable)
+    parser.add_argument("--gpu_ids", default="", help="Comma-separated GPU ids assigned round-robin to workers. Empty means inherit the parent CUDA_VISIBLE_DEVICES.")
+    parser.add_argument("--per_worker_threads", type=int, default=0, help="Set OMP/MKL/OpenBLAS/NUMEXPR/TORCH thread counts per worker when > 0.")
     parser.add_argument("--start_shard", type=int, default=0)
     parser.add_argument("--end_shard", type=int, default=256)
     parser.add_argument("--num_shards", type=int, default=256)
@@ -50,26 +53,48 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--monitor_interval", type=float, default=5.0)
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--progress", action="store_true")
+    parser.add_argument("--dry_run", action="store_true")
+    parser.add_argument("--fail_fast", action="store_true")
     return parser.parse_args()
+
+
+def _parse_gpu_ids(value: str) -> list[str]:
+    return [item.strip() for item in str(value).split(",") if item.strip()]
 
 
 def _query_gpu() -> dict[str, Any]:
     cmd = [
         "nvidia-smi",
-        "--query-gpu=utilization.gpu,memory.used,memory.total",
+        "--query-gpu=index,utilization.gpu,memory.used,memory.total",
         "--format=csv,noheader,nounits",
     ]
     try:
-        out = subprocess.check_output(cmd, text=True, stderr=subprocess.DEVNULL).strip().splitlines()
+        lines = subprocess.check_output(cmd, text=True, stderr=subprocess.DEVNULL).strip().splitlines()
     except Exception as exc:  # pragma: no cover - hardware dependent
-        return {"gpu_util_pct": None, "gpu_mem_used_mb": None, "gpu_mem_total_mb": None, "error": str(exc)}
-    if not out:
-        return {"gpu_util_pct": None, "gpu_mem_used_mb": None, "gpu_mem_total_mb": None, "error": "empty nvidia-smi output"}
-    parts = [part.strip() for part in out[0].split(",")]
+        return {"gpu_util_pct": None, "gpu_mem_used_mb": None, "gpu_mem_total_mb": None, "gpu_details": "[]", "error": str(exc)}
+    rows: list[dict[str, float | str]] = []
+    for line in lines:
+        parts = [part.strip() for part in line.split(",")]
+        if len(parts) < 4:
+            continue
+        rows.append(
+            {
+                "index": parts[0],
+                "util_pct": float(parts[1]),
+                "mem_used_mb": float(parts[2]),
+                "mem_total_mb": float(parts[3]),
+            }
+        )
+    if not rows:
+        return {"gpu_util_pct": None, "gpu_mem_used_mb": None, "gpu_mem_total_mb": None, "gpu_details": "[]", "error": "unparsed nvidia-smi output"}
+    total_mem = sum(float(row["mem_used_mb"]) for row in rows)
+    total_cap = sum(float(row["mem_total_mb"]) for row in rows)
+    mean_util = sum(float(row["util_pct"]) for row in rows) / max(len(rows), 1)
     return {
-        "gpu_util_pct": float(parts[0]),
-        "gpu_mem_used_mb": float(parts[1]),
-        "gpu_mem_total_mb": float(parts[2]),
+        "gpu_util_pct": float(mean_util),
+        "gpu_mem_used_mb": float(total_mem),
+        "gpu_mem_total_mb": float(total_cap),
+        "gpu_details": json.dumps(rows, separators=(",", ":")),
         "error": "",
     }
 
@@ -162,26 +187,60 @@ def main() -> None:
     logs_dir.mkdir(parents=True, exist_ok=True)
     run_prefix = args.run_prefix or f"{launcher_name}_{args.split_name}"
     pending = list(range(int(args.start_shard), int(args.end_shard)))
+    gpu_ids = _parse_gpu_ids(args.gpu_ids)
     active: list[dict[str, Any]] = []
     completed_rows: list[dict[str, Any]] = []
     monitor_rows: list[dict[str, Any]] = []
     launch_start = time.perf_counter()
     last_monitor = 0.0
+    launch_count = 0
+
+    def worker_env(worker_index: int) -> dict[str, str]:
+        env = dict(os.environ)
+        if gpu_ids:
+            env["CUDA_VISIBLE_DEVICES"] = str(gpu_ids[int(worker_index) % len(gpu_ids)])
+        if int(args.per_worker_threads) > 0:
+            threads = str(int(args.per_worker_threads))
+            for key in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS", "NUMEXPR_NUM_THREADS", "TORCH_NUM_THREADS"):
+                env[key] = threads
+        return env
+
+    if bool(args.dry_run):
+        rows = []
+        for offset, shard_id in enumerate(pending):
+            run_name = f"{run_prefix}_shard{int(shard_id):03d}_of{int(args.num_shards):03d}"
+            env = worker_env(offset)
+            rows.append(
+                {
+                    "shard_id": int(shard_id),
+                    "gpu": env.get("CUDA_VISIBLE_DEVICES", ""),
+                    "threads": env.get("OMP_NUM_THREADS", ""),
+                    "run_name": run_name,
+                    "command": " ".join(_worker_command(args, run_name=run_name, shard_id=int(shard_id))),
+                }
+            )
+        print(json.dumps(rows, indent=2), flush=True)
+        return
 
     def launch_next() -> None:
+        nonlocal launch_count
         shard_id = int(pending.pop(0))
         run_name = f"{run_prefix}_shard{shard_id:03d}_of{int(args.num_shards):03d}"
         stdout_path = logs_dir / f"{run_name}.stdout.log"
         stderr_path = logs_dir / f"{run_name}.stderr.log"
         stdout = stdout_path.open("w", encoding="utf-8")
         stderr = stderr_path.open("w", encoding="utf-8")
+        env = worker_env(launch_count)
         process = subprocess.Popen(
             _worker_command(args, run_name=run_name, shard_id=shard_id),
             cwd=ROOT,
+            env=env,
             stdout=stdout,
             stderr=stderr,
             text=True,
         )
+        assigned_gpu = env.get("CUDA_VISIBLE_DEVICES", "")
+        launch_count += 1
         active.append(
             {
                 "process": process,
@@ -192,6 +251,7 @@ def main() -> None:
                 "run_name": run_name,
                 "run_dir": Path(args.output_dir) / run_name,
                 "shard_id": shard_id,
+                "gpu": assigned_gpu,
                 "start_sec": float(time.perf_counter() - launch_start),
             }
         )
@@ -214,6 +274,7 @@ def main() -> None:
                 "run_name": str(item["run_name"]),
                 "run_dir": str(item["run_dir"]),
                 "returncode": int(process.returncode),
+                "gpu": str(item.get("gpu", "")),
                 "samples": int(manifest.get("samples", 0) or 0),
                 "new_samples": int(manifest.get("new_samples", 0) or 0),
                 "records": int(manifest.get("records", 0) or 0),
@@ -225,6 +286,10 @@ def main() -> None:
             completed_rows.append(row)
             if bool(args.progress):
                 print(json.dumps(row), flush=True)
+            if int(process.returncode) != 0 and bool(args.fail_fast):
+                for live in still_active:
+                    live["process"].terminate()
+                raise SystemExit(f"Shard {item['shard_id']} failed with returncode {process.returncode}")
         active = still_active
 
         now = time.perf_counter()
@@ -257,6 +322,8 @@ def main() -> None:
         "end_shard": int(args.end_shard),
         "num_shards": int(args.num_shards),
         "max_parallel_workers": int(args.max_parallel_workers),
+        "gpu_ids": gpu_ids,
+        "per_worker_threads": int(args.per_worker_threads),
         "completed_shards": int(len(completed_rows)),
         "failed_shards": int(len(failed)),
         "completed_samples": int(completed_samples),

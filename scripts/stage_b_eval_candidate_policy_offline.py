@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """Offline evaluation of a learned candidate scorer on Teacher records."""
 
 from __future__ import annotations
@@ -18,9 +18,9 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from dmmp.stage_b.policy_model import CandidateScoringPolicy, PolicyModelConfig
-from dmmp.utils import resolve_device
-from dmmp.utils.config import DEFAULT_OUTPUT_DIR
+from dynapd.stage_b.policy_model import CandidateScoringPolicy, PolicyModelConfig
+from dynapd.utils import resolve_device
+from dynapd.utils.config import DEFAULT_OUTPUT_DIR
 
 from scripts.stage_b_train_candidate_policy import TeacherRecordDataset, collate_records
 

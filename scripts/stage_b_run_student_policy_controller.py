@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """Run closed-loop Stage B controllers backed by a learned candidate policy."""
 
 from __future__ import annotations
@@ -22,19 +22,19 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from dmmp.stage_a.modeling import load_stage_a_attacker
-from dmmp.stage_b.expanded_generator import (
+from dynapd.stage_a.modeling import load_stage_a_attacker
+from dynapd.stage_b.expanded_generator import (
     ExpandedAction,
     action_identity,
     generate_compact_action_descriptors,
     generate_expanded_actions,
     materialize_candidate_descriptors,
 )
-from dmmp.stage_b.objectives import probability_metrics
-from dmmp.stage_b.policy_data import encode_actions, encode_state_features
-from dmmp.stage_b.policy_model import CandidateScoringPolicy, PolicyModelConfig
-from dmmp.utils import resolve_device, set_seed
-from dmmp.utils.config import DEFAULT_DATA_ROOT, DEFAULT_OUTPUT_DIR
+from dynapd.stage_b.objectives import probability_metrics
+from dynapd.stage_b.policy_data import encode_actions, encode_state_features
+from dynapd.stage_b.policy_model import CandidateScoringPolicy, PolicyModelConfig
+from dynapd.utils import resolve_device, set_seed
+from dynapd.utils.config import DEFAULT_DATA_ROOT, DEFAULT_OUTPUT_DIR
 
 from scripts.stage_b_run_b2e_diverse_search import (
     DEFAULT_ARCHIVE,

@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """Build the balanced policy dataset split for Stage B teacher/student work."""
 
 from __future__ import annotations
@@ -19,8 +19,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from dmmp.data import load_cw_data
-from dmmp.utils.config import DEFAULT_DATA_ROOT, DEFAULT_OUTPUT_DIR
+from dynapd.data import load_cw_data
+from dynapd.utils.config import DEFAULT_DATA_ROOT, DEFAULT_OUTPUT_DIR
 
 
 DEFAULT_ARCHIVE = (

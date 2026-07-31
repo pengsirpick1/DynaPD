@@ -1,4 +1,4 @@
-# Stage B Last-Real Latency Overhead Audit
+﻿# Stage B Last-Real Latency Overhead Audit
 
 Date: 2026-07-31
 

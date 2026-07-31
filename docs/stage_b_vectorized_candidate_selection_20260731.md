@@ -1,4 +1,4 @@
-# Stage B Vectorized Candidate Selection
+﻿# Stage B Vectorized Candidate Selection
 
 Date: 2026-07-31
 
@@ -7,7 +7,7 @@ Date: 2026-07-31
 Optimized the compact descriptor-table selection hotspot:
 
 ```text
-dmmp/stage_b/expanded_generator.py
+dynapd/stage_b/expanded_generator.py
 _select_descriptor_indices
 ```
 
