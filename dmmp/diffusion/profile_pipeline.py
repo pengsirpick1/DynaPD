@@ -54,8 +54,8 @@ from ..guidance.strong_surrogates import (
     build_attack_context,
     ensemble_metrics_from_rendered,
     ensemble_utility_maps,
+    resolve_guidance_positions,
     strong_global_targets,
-    surrogate_pseudo_label_positions,
 )
 from ..constraints.user_profiles import (
     UserDefenseProfile,
@@ -785,6 +785,7 @@ def _stage2_diffusion_state_payload(
             "hidden_dim": int(cfg.hidden_dim),
             "diffusion_steps": int(cfg.diffusion_steps),
             "v1_mode_pool": str(cfg.v1_mode_pool),
+            "guidance_label_mode": str(cfg.guidance_label_mode),
         },
     }
     if torch.cuda.is_available():
@@ -813,6 +814,7 @@ def _load_stage2_diffusion_state(
         int(model_cfg.get("patch_num", cfg.patch_num)) == int(cfg.patch_num)
         and int(model_cfg.get("hidden_dim", cfg.hidden_dim)) == int(cfg.hidden_dim)
         and int(model_cfg.get("diffusion_steps", cfg.diffusion_steps)) == int(cfg.diffusion_steps)
+        and str(model_cfg.get("guidance_label_mode", "pseudo")) == str(cfg.guidance_label_mode)
     )
     if not compatible:
         return 0, {}, False
@@ -878,7 +880,13 @@ def train_v4_diffusion(
     optimizer = torch.optim.AdamW(optimized_parameters, lr=float(cfg.diffusion_lr))
     rng = np.random.default_rng(int(cfg.seed) + 500)
     train_prefix_rows = _prefix_only_rows(raw[train_indices], cfg)
-    guidance_positions, guidance_target_metrics = surrogate_pseudo_label_positions(train_prefix_rows, surrogate_bundle, cfg, device)
+    guidance_positions, guidance_target_metrics = resolve_guidance_positions(
+        train_prefix_rows,
+        labels[train_indices],
+        surrogate_bundle,
+        cfg,
+        device,
+    )
     steps = max(int(cfg.diffusion_train_steps), 1)
     guidance_start = max(0, steps - max(int(cfg.guidance_train_steps), 0))
     last: dict[str, float] = {}
@@ -916,7 +924,10 @@ def train_v4_diffusion(
     log(
         f"[Stage 2/3] Diffusion training begins: steps={steps}, batch_size={batch_size}, "
         f"guidance_start={guidance_start}, budgets={','.join(f'{value:.3f}' for value in budgets)}, "
+        f"guidance_target={guidance_target_metrics.get('guidance_target_source')}, "
+        f"target_samples={float(guidance_target_metrics.get('guidance_target_samples', 0.0)):.0f}, "
         f"pseudo_target_conf={float(guidance_target_metrics.get('guidance_pseudo_target_mean_confidence', 0.0)):.4f}, "
+        f"true_target_conf={float(guidance_target_metrics.get('guidance_true_target_mean_confidence', 0.0)):.4f}, "
         f"start_step={start_step}",
         cfg.progress,
     )
@@ -1118,14 +1129,20 @@ def train_v4_diffusion(
         }
         if not warmstart_saved and step + 1 >= max(guidance_start, 1):
             torch.save(
-                {
-                    "diffusion_state": diffusion.state_dict(),
-                    "condition_encoder_state": condition_encoder.state_dict(),
-                    "prefix_align_projector_state": prefix_align_projector.state_dict(),
-                    "hidden_align_projector_state": hidden_align_projector.state_dict(),
-                    "step": int(step + 1),
-                    "metrics": last,
-                },
+                _stage2_diffusion_state_payload(
+                    diffusion=diffusion,
+                    condition_encoder=condition_encoder,
+                    prefix_align_projector=prefix_align_projector,
+                    hidden_align_projector=hidden_align_projector,
+                    optimizer=optimizer,
+                    step=int(step + 1),
+                    metrics=last,
+                    rng=rng,
+                    combination_counts=combination_counts,
+                    mode_counts=mode_counts,
+                    profile_counts=profile_counts,
+                    cfg=cfg,
+                ),
                 stage_dir / "diffusion_warmstart_checkpoint.pt",
             )
             warmstart_saved = True
@@ -1169,6 +1186,7 @@ def train_v4_diffusion(
             "diffusion_steps": int(cfg.diffusion_steps),
             "sampling_steps": int(cfg.sampling_steps),
             "v1_mode_pool": str(cfg.v1_mode_pool),
+            "guidance_label_mode": str(cfg.guidance_label_mode),
         },
         "metrics": {**last, **guidance_target_metrics, "steps": int(steps), "guidance_start": int(guidance_start)},
     }
@@ -1190,6 +1208,7 @@ def train_v4_diffusion(
             "sample_records_saved": 0,
             "requested_guidance_attackers": str(cfg.guidance_attackers),
             "actual_guidance_surrogate": "frozen_ProjectDF_ProjectRF_ensemble",
+            "guidance_label_mode": str(cfg.guidance_label_mode),
             "guidance_applies_from_step": int(guidance_start),
         },
     )
@@ -1251,11 +1270,19 @@ def generate_v4_ragged_dataset(
     clean = raw[selected]
     y = labels[selected].astype(np.int64)
     clean_prefix_rows = _prefix_only_rows(clean, cfg)
-    guidance_positions, guidance_target_metrics = surrogate_pseudo_label_positions(clean_prefix_rows, surrogate_bundle, cfg, device)
+    guidance_positions, guidance_target_metrics = resolve_guidance_positions(
+        clean_prefix_rows,
+        y,
+        surrogate_bundle,
+        cfg,
+        device,
+    )
     log(
         f"[Stage 3 sampling] models loaded; repeat_count={_repeat_count_for_namespace(cfg, visit_namespace)}, "
         f"guidance_target={guidance_target_metrics.get('guidance_target_source')}, "
-        f"pseudo_conf={float(guidance_target_metrics.get('guidance_pseudo_target_mean_confidence', 0.0)):.4f}",
+        f"target_samples={float(guidance_target_metrics.get('guidance_target_samples', 0.0)):.0f}, "
+        f"pseudo_conf={float(guidance_target_metrics.get('guidance_pseudo_target_mean_confidence', 0.0)):.4f}, "
+        f"true_conf={float(guidance_target_metrics.get('guidance_true_target_mean_confidence', 0.0)):.4f}",
         cfg.progress,
     )
     context = _candidate_context(
@@ -2236,7 +2263,7 @@ def _write_v4_final_summary(run_dir: Path, cfg: DefenseConfig, data_source: str,
         f"- diffusion checkpoint: {run_dir / 'stage2_user_diffusion' / 'diffusion_guided_checkpoint.pt'}",
         f"- denoising loss: {stage2.get('diffusion', {}).get('denoise', 0.0):.6f}",
         f"- strong guidance attackers: {cfg.guidance_attackers}",
-        "- guidance source: frozen ProjectDF/ProjectRF ensemble; training/validation losses may use labels, while deployment DDIM/refinement uses label-free surrogate pseudo labels.",
+        f"- guidance label mode: {cfg.guidance_label_mode} (pseudo keeps label-free frozen-surrogate targets; true uses true site labels for Stage 2/3 guidance targets).",
         f"- defense-first hard weight / soft scale: {cfg.defense_hard_weight:.4f} / {cfg.defense_soft_objective_scale:.4f}",
         f"- attack-first prior leak/preference/noise weights: {cfg.prior_leak_weight:.4f} / {cfg.prior_preference_weight:.4f} / {cfg.prior_noise_std:.4f}",
         f"- preference auxiliary weight / attack gate margin: {cfg.preference_weight:.4f} / {cfg.preference_attack_gate_margin:.4f}",

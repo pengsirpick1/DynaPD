@@ -7,6 +7,12 @@
 - fixed attacker 评估优先复用当前 run 下已生成且 attack 配置签名、run artifact 签名一致的 fixed metrics/checkpoint 缓存；若签名不一致或使用 `--force_retrain`，新权重和指标必须落在当前指定 run/output 目录。历史 fixed checkpoint 只能在兼容性已验证且文档记录路径/前提时作为固定评估器引用。
 - mixed attacker 必须基于当前 run 的 clean + fresh defended train/val 重新训练，并在 fresh deployment defended test 上评估；不得把 fixed checkpoint 直接登记为 mixed 最终权重。
 
+## 2026-07-20 Label-dependent oracle 消融协议
+
+- 正式 label-free 主线仍必须使用 `--guidance_label_mode pseudo`，也就是 Stage 2/3 guidance target 来自 observed-prefix surrogate pseudo label。
+- 如需估计真实标签能带来的防御指导上界，可以另开同 seed、同 split、同 budget 的 `--guidance_label_mode true` run。该模式仅改变 Stage 2 diffusion guidance 与 Stage 3 guided DDIM/refinement target，并必须标注为 oracle / upper-bound ablation。
+- 对比报告必须同时列出 fixed/mixed DF/RF accuracy、true-label confidence、entropy、label-free pressure、BWO、coverage/fallback 和 hard-gate violation，避免把 oracle 结果误解为在线可部署结果。
+
 ## 数据集
 
 当前正式协议默认使用 CW：

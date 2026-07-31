@@ -105,6 +105,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--condition_preference_weights", action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument("--policy_generator", choices=["diffusion", "heuristic_prior_direct"], default="diffusion")
     parser.add_argument("--guidance_attackers", choices=["df", "rf", "both"], default="both")
+    parser.add_argument(
+        "--guidance_label_mode",
+        choices=["pseudo", "true"],
+        default="pseudo",
+        help="Use label-free frozen-surrogate pseudo labels or true site labels as Stage 2/3 guidance targets.",
+    )
     parser.add_argument("--surrogate_train_samples", type=int, default=30000)
     parser.add_argument("--surrogate_val_samples", type=int, default=5000)
     parser.add_argument("--surrogate_epochs", type=int, default=10)

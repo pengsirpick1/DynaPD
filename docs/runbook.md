@@ -50,6 +50,7 @@ conda run --no-capture-output -n llm python scripts\train_defense.py --run_name 
 - `--candidate_mode executable`
 - `--probe_attacker both`
 - `--guidance_attackers both`
+- `--guidance_label_mode pseudo`
 
 正式 run 会创建：
 
@@ -120,6 +121,32 @@ conda run --no-capture-output -n llm python scripts\train_defense.py --run_name 
 
 该设置用于消融分析，不建议直接替代正式主线默认值。它仍然受 candidate mask、allowed mask 和 bandwidth budget 约束。
 
+## Label-dependent guidance 消融
+
+默认 `--guidance_label_mode pseudo` 保持 Stage 2/3 的 label-free surrogate pseudo-label guidance。若要评估真实网站标签能给防御指导带来多少上界提升，可以新建一个独立 run：
+
+```powershell
+conda run --no-capture-output -n llm python scripts\train_defense.py --run_name dmmpv3_cw_seed0_b30_true_label_guidance --guidance_label_mode true
+```
+
+该开关只改变 Stage 2 diffusion guidance 和 Stage 3 guided DDIM/refinement 的 target，不改变 Stage 1、encoder、candidate scorer 或 profile/preference 条件逻辑。
+
+成对全量训练和 fixed DF/RF 评测可以直接运行：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\run_label_guidance_full.ps1 -Seed 0 -Budgets 0.30 -Mode both
+```
+
+默认会生成同 seed、同 budget 的两个 run：`pseudo_label_free` 主线和 `true_label_oracle` 上界消融，并只运行 fixed DF/RF 评测，不运行 mixed 训练/评测。该脚本不设置 `max_samples`、`max_classes`、轻量 epoch 或 smoke-only 参数。
+
+如果脚本因窗口重连、中断或机器重启后需要继续执行，直接重跑同一命令即可。脚本会检查目标 run 目录：Stage 3 已完成时跳过 defense 并补 fixed DF/RF 评测；只有 Stage 1 或 Stage 2 完成时分别用 `--stage 2` / `--stage 3` 接续；不可恢复的半成品目录会直接报错而不是覆盖。每次非 dry-run 执行都会写入 `logs\<run_prefix>_*_label_guidance_*.log` transcript 和 invocation manifest。
+
+为避免 `conda run` 阻塞，脚本默认直接调用 `llm` 环境的 `python.exe`。如环境不在默认位置，可显式传入：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\run_label_guidance_full.ps1 -Seed 0 -Budgets 0.30 -Mode both -PythonExe D:\Miniconda3\envs\llm\python.exe
+```
+
 ## Guidance sweep
 
 在已有 run 上做 guidance sweep：
@@ -133,6 +160,26 @@ conda run --no-capture-output -n llm python scripts\sweep_guidance.py --run_dir 
 ```text
 stage3_inference_margin_sweep
 ```
+
+## Stage A 关键点发现
+
+Stage A 是独立的可审查闭环：先在冻结攻击器上对 clean TAM 样本做 deletion-style DynaMask，再对 mask 做 PCA+KMeans 聚类。所有输出仍写入 `results\<run_name>`。
+
+原生 RF/TAM quick audit 示例：
+
+```powershell
+conda run --no-capture-output -n llm python scripts\stage_a_run_dyn_mask.py --attacker rf --run_name stage_a_rf_native_w1800_n96_s60_seed0 --max_samples 96 --steps 60 --width 1800 --batch_size 4 --plot_limit 16 --device auto
+conda run --no-capture-output -n llm python scripts\stage_a_cluster_masks.py --archive results\stage_a_rf_native_w1800_n96_s60_seed0\stage_a_masks_rf\all_masks.npz --k_values "4,5,6,7,8,9,10,12" --pca_components 16 --representatives_per_cluster 4 --seed 0
+conda run --no-capture-output -n llm python scripts\stage_a_summarize_results.py --archive results\stage_a_rf_native_w1800_n96_s60_seed0\stage_a_masks_rf\all_masks.npz --cluster_result results\stage_a_rf_native_w1800_n96_s60_seed0\stage_a_clustering\cluster_result.npz
+```
+
+如需人工可解释性优先的 K=4 prototype，可另存审核版本：
+
+```powershell
+conda run --no-capture-output -n llm python scripts\stage_a_cluster_masks.py --archive results\stage_a_rf_native_w1800_n96_s60_seed0\stage_a_masks_rf\all_masks.npz --output_dir results\stage_a_rf_native_w1800_n96_s60_seed0\stage_a_clustering_k4_review --k_values "4" --pca_components 16 --representatives_per_cluster 4 --seed 0
+```
+
+`W=200` 可用于快速 smoke，但若使用现有 fixed RF checkpoint，正式解释应优先使用 `W=1800`，因为该 checkpoint 原生输入就是 `[2, 1800]` TAM。
 
 ## 训练期 loss 超参轻量搜索
 

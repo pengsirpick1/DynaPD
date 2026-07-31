@@ -1,0 +1,7 @@
+{
+  "epochs": 20,
+  "batch_size": 64,
+  "lr": 0.001,
+  "bce_weight": 0.25,
+  "model": "Conv1d(2->32->64) + 3 residual blocks + Conv1d(64->2) + sigmoid"
+}

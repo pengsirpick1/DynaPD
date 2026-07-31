@@ -1,66 +1,226 @@
-# DMMPv3
+# DynaPD
 
-DMMPv3 是当前网站指纹防御项目的新 Harness 工程，位置为 `D:\learning\TOR\defence\DMMPv3`。它与旧工程 `defence\DMMP`、`defence\DMMP2`、根目录 `experiments`、`models`、`defenses` 和历史 `results` 分离。
+DynaPD is a research codebase for dynamic padding defenses against website
+fingerprinting attacks. The repository contains the current DMMPv3 harness, with
+the most active line of work in Stage B: teacher/oracle action search, compact
+candidate selection, GPU TAM candidate evaluation, and student policy training.
 
-最新 DMMP2 强 DF/RF guidance 实现已经迁移到本工程的 `dmmp/` 与 `scripts/` 下。迁移后的正式方案统一称为 DMMPv3，不再使用旧版本编号命名。DMMP2 中对应内容只作为迁移来源和历史证据。
+This public snapshot intentionally excludes datasets, checkpoints, generated
+archives, logs, and experiment outputs.
 
-## 当前状态
+## Current Research Anchor
 
-- 已迁移 CW 数据加载、seed 0 stratified split、prefix/candidate 分析、condition encoder、guided diffusion、projection/refinement/renderer、fixed/mixed attack evaluation 入口。
-- 防御训练默认入口为 `scripts\train_defense.py` 或 `scripts\run_defense.py`。
-- fixed/mixed 评测入口为 `scripts\run_attack_eval.py`，并提供 `evaluate_fixed.py`、`evaluate_mixed.py`、`train_mixed_attackers.py` 包装入口。
-- 所有 DMMPv3 新运行默认写入 `D:\learning\TOR\defence\DMMPv3\results`。
-- 本次迁移没有启动正式大规模训练，也没有移动或覆盖历史 checkpoint。
+The strongest current method is the Stage B2-E `stratified_top128` teacher with
+D64 delay support under the `bidirectional_cooperative` protocol.
 
-## 已确认可复用资产
+Reference results from the local CW/RF evaluation:
 
-已验证兼容的 fixed DF/RF checkpoint 仍保留在历史结果目录，只在 `docs/model_registry.md` 中登记：
+| method | clean RF acc | defended RF acc | mean bandwidth | mean delay |
+|---|---:|---:|---:|---:|
+| Stage B2-E Teacher, `stratified_top128`, D64 | 96.84% | 4.21% | 6.17% | 5.03 bins |
+| Student `top4_verify` | n/a | 8.42% | 5.90% | n/a |
 
-- DF：`D:\learning\TOR\results\dmmp2_v5_fixed_oriented_seed0_bwo30\attack_eval\fixed\df\fixed_df_checkpoint.pt`
-- RF：`D:\learning\TOR\results\dmmp2_v5_fixed_oriented_seed0_bwo30\attack_eval\fixed\rf\fixed_rf_checkpoint.pt`
+Latency audit:
 
-它们是 DMMPv3 内部迭代时的稳定 fixed 评测器。只要 CW 数据集、95 类标签映射、seed 0 split、DF/RF 输入表示和 ProjectDF/ProjectRF 结构不变，就不需要因为每次改进防御策略而重训 fixed DF/RF。
+| method | mean completion delay | p95 completion delay |
+|---|---:|---:|
+| Teacher | 0.0706 s | 0.4202 s |
+| Student `top4_verify` | 0.0664 s | 0.4198 s |
 
-## 运行入口
+Throughput notes:
 
-先检查工程结构和默认输出目录：
+| parallel workers | throughput | GPU memory |
+|---:|---:|---:|
+| 1 | 10520 traces/hour | 2.49 GB |
+| 2 | 19124 traces/hour | 3.05 GB |
+| 3 | 27421 traces/hour | 4.11 GB |
+| 4 | 32109 traces/hour | 4.55 GB |
+| 8 | 24561 traces/hour | 8.04 GB |
+
+The recommended local shard setting is currently 4 workers. The active-state
+batch exporter is kept as an experimental probe; the canonical teacher data path
+should use the vectorized exporter or the shard launcher unless a later change
+strictly preserves the teacher trajectory.
+
+## Repository Layout
+
+```text
+configs/              Experiment configuration files.
+dmmp/                 Python package for data loading, attacks, defense models,
+                      rendering, purifier prototypes, Stage A, and Stage B.
+scripts/              Reproducible experiment, audit, plotting, and training entrypoints.
+docs/                 Method notes, runbooks, audit reports, and experiment logs.
+stage_a/README.md     Stage A research notes.
+stage_b/README.md     Stage B research notes.
+tasks/                Local task memory for the research harness.
+```
+
+Important Stage B files:
+
+```text
+dmmp/stage_b/expanded_generator.py
+scripts/stage_b_prepare_fast_keypoint_archive.py
+scripts/stage_b_build_policy_dataset.py
+scripts/stage_b_export_teacher_trajectories.py
+scripts/stage_b_launch_teacher_shards_parallel.py
+scripts/stage_b_train_candidate_policy.py
+scripts/stage_b_run_student_policy_controller.py
+```
+
+## Installation
+
+The code is developed on Windows with a CUDA PyTorch environment, but the package
+itself is plain Python.
 
 ```powershell
 cd D:\learning\TOR\defence\DMMPv3
+python -m pip install -r requirements.txt
+python -m pip install -e .
+```
+
+For GPU runs, install the PyTorch build that matches your CUDA driver first, then
+install the remaining requirements.
+
+## Data And Checkpoint Policy
+
+No dataset, model checkpoint, teacher archive, policy checkpoint, result CSV,
+profile report, or log file is committed.
+
+Expected local inputs are:
+
+```text
+CW dataset: pass with --data_root, or place under D:\learning\TOR\datasets\CW
+RF/DF checkpoints: pass with --checkpoint when a script needs a fixed attacker
+Generated archives/results: written under results/ by default
+```
+
+The `.gitignore` excludes `datasets/`, `data/`, `results/`, `logs/`, `models/`,
+`*.pt`, `*.pth`, `*.ckpt`, `*.npz`, `*.npy`, and related temporary artifacts.
+
+## Quick Checks
+
+```powershell
 python scripts\verify_project.py
+python -m compileall dmmp scripts
 ```
 
-查看防御训练参数：
+## Stage B2-E Reproduction Skeleton
+
+Prepare a full CW fast-keypoint archive:
 
 ```powershell
-conda run -n llm python scripts\train_defense.py --help
+python scripts\stage_b_prepare_fast_keypoint_archive.py `
+  --data_root D:\learning\TOR\datasets\CW `
+  --attacker rf `
+  --checkpoint <path-to-rf-checkpoint.pt> `
+  --split_name all `
+  --run_name stage_b_fast_keypoint_full_cw_all_seed0 `
+  --progress
 ```
 
-正式训练会默认写入 `D:\learning\TOR\defence\DMMPv3\results`：
+Build train/validation/test policy splits:
 
 ```powershell
-conda run -n llm python scripts\train_defense.py --run_name dmmpv3_cw_seed0_b30_formal
+python scripts\stage_b_build_policy_dataset.py `
+  --archive results\stage_b_fast_keypoint_full_cw_all_seed0\fast_keypoint_archive.npz `
+  --full_cw `
+  --run_name stage_b_policy_dataset_full_cw_seed0
 ```
 
-对某个 DMMPv3 run 进行 fixed 评测：
+Export canonical teacher trajectories for one shard:
 
 ```powershell
-conda run -n llm python scripts\evaluate_fixed.py --run_dir D:\learning\TOR\defence\DMMPv3\results\<run_name>
+python scripts\stage_b_export_teacher_trajectories.py `
+  --archive results\stage_b_fast_keypoint_full_cw_all_seed0\fast_keypoint_archive.npz `
+  --split_file results\stage_b_policy_dataset_full_cw_seed0\policy_splits.npz `
+  --split_name train `
+  --num_shards 256 `
+  --shard_id 0 `
+  --max_samples -1 `
+  --budget_mode fixed `
+  --fixed_budget 0.10 `
+  --method stratified_top128 `
+  --protocol bidirectional_cooperative `
+  --max_delay 64 `
+  --rounds 3 `
+  --max_dummy_steps 8 `
+  --max_action_budget 0.10 `
+  --compact_candidate_generation `
+  --candidate_batch_size 4096 `
+  --candidate_device cuda `
+  --candidate_eval_mode gpu_tam `
+  --storage_mode sparse `
+  --resume `
+  --run_name stage_b2e_teacher_full_cw_train_shard000_of256
 ```
 
-对同一 run 进行 mixed adaptive 训练与评测：
+Launch multiple teacher shards:
 
 ```powershell
-conda run -n llm python scripts\train_mixed_attackers.py --run_dir D:\learning\TOR\defence\DMMPv3\results\<run_name>
-conda run -n llm python scripts\evaluate_mixed.py --run_dir D:\learning\TOR\defence\DMMPv3\results\<run_name>
+python scripts\stage_b_launch_teacher_shards_parallel.py `
+  --archive results\stage_b_fast_keypoint_full_cw_all_seed0\fast_keypoint_archive.npz `
+  --split_file results\stage_b_policy_dataset_full_cw_seed0\policy_splits.npz `
+  --split_name train `
+  --num_shards 256 `
+  --start_shard 0 `
+  --end_shard 256 `
+  --max_parallel_workers 4 `
+  --budget 0.10 `
+  --method stratified_top128 `
+  --candidate_batch_size 4096 `
+  --candidate_device cuda `
+  --candidate_score_device cpu `
+  --candidate_eval_device cuda `
+  --candidate_eval_mode gpu_tam `
+  --storage_mode sparse `
+  --resume `
+  --progress
 ```
 
-## 关键文档
+Train a student policy from exported teacher records:
 
-- `docs/method_spec.md`：DMMPv3 方法和阶段说明。
-- `docs/experiment_protocol.md`：正式实验、评测和结果目录协议。
-- `docs/project_map.md`：迁移来源、当前文件结构和入口。
-- `docs/implementation_index.md`：当前代码分层、入口和阶段到文件的对应关系。
-- `docs/runbook.md`：标准运行命令、评测命令和禁止事项。
-- `docs/model_registry.md`：checkpoint 兼容性和复用规则。
-- `docs/decisions.md`：已确认决策与仍需人工确认事项。
+```powershell
+python scripts\stage_b_train_candidate_policy.py `
+  --records_csv <teacher-train-records.csv> `
+  --val_records_csv <teacher-val-records.csv> `
+  --run_name stage_b_candidate_policy_top4 `
+  --epochs 5 `
+  --batch_size 8
+```
+
+Evaluate a student controller:
+
+```powershell
+python scripts\stage_b_run_student_policy_controller.py `
+  --archive results\stage_b_fast_keypoint_full_cw_all_seed0\fast_keypoint_archive.npz `
+  --policy_checkpoint <path-to-policy-checkpoint.pt> `
+  --split_file results\stage_b_policy_dataset_full_cw_seed0\policy_splits.npz `
+  --split_name test `
+  --methods student_top4_verify `
+  --dummy_budgets 0.10 `
+  --max_delay 64 `
+  --compact_candidate_generation `
+  --candidate_batch_size 4096 `
+  --candidate_device cuda `
+  --progress
+```
+
+## Documentation
+
+The most useful local notes for this snapshot are:
+
+```text
+docs/method_spec.md
+docs/experiment_protocol.md
+docs/runbook.md
+docs/stage_b2d_strategy_versions.md
+docs/stage_b_vectorized_candidate_selection_20260731.md
+docs/stage_b_candidate_frontend_parallel_20260731.md
+docs/stage_b_active_batch_exporter_20260731.md
+docs/stage_b_latency_overhead_audit_20260731.md
+```
+
+## Status
+
+This is research code, not a polished library release. The default focus is
+reproducible local experimentation rather than a stable public API.

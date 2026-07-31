@@ -115,6 +115,7 @@ class DefenseConfig:
     condition_preference_weights: bool = False
     policy_generator: str = "diffusion"
     guidance_attackers: str = "both"
+    guidance_label_mode: str = "pseudo"
     surrogate_train_samples: int = 30000
     surrogate_val_samples: int = 5000
     surrogate_epochs: int = 10

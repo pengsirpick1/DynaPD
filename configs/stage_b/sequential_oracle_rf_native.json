@@ -1,0 +1,19 @@
+{
+  "attacker": "rf",
+  "archive": "results\\stage_a_rf_native_w1800_n96_s60_seed0\\stage_a_masks_rf\\all_masks.npz",
+  "action_table": "results\\stage_a_additive_probe_rf_native_w1800_n96_seed0\\action_results.csv",
+  "budgets": "0.02,0.05,0.10,0.15",
+  "protocols": "client_only,bidirectional_cooperative",
+  "methods": "random,early,magnitude,static_single_action_efficiency,dynamask_same_sequential,dynamask_causal_sequential",
+  "max_candidates_per_sample": 64,
+  "confidence_weight": 0.30,
+  "margin_weight": 0.50,
+  "entropy_weight": 0.20,
+  "min_marginal_gain": 0.0,
+  "renderer_coordinate": "rf_tam",
+  "renderer_strategy": "uniform_in_patch",
+  "renderer_batch_size": 64,
+  "batch_size": 128,
+  "rf_num_slots": 1800,
+  "checkpoint": "D:\\learning\\TOR\\results\\dmmp2_v5_fixed_oriented_seed0_bwo30\\attack_eval\\fixed\\rf\\fixed_rf_checkpoint.pt"
+}

@@ -7,11 +7,18 @@ __pycache__/
 .ruff_cache/
 .venv/
 venv/
+.env
+.env.*
 
 # Local experiment outputs and heavyweight artifacts
 results/
 logs/
 models/
+tmp/
+tmp_palette_*
+stage_a/outputs/
+*.log
+*.pid
 *.pt
 *.pth
 *.ckpt
@@ -30,3 +37,6 @@ Thumbs.db
 # Data should stay outside the code snapshot
 /datasets/
 /data/
+
+# Local notes / imported paper scratch space
+/first_terr.md

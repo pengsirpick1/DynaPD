@@ -1,5 +1,11 @@
 # DMMPv3 方法说明
 
+## 2026-07-20 guidance_label_mode
+
+- 新增 `guidance_label_mode`，默认值为 `pseudo`，因此现有 Stage 2/3 label-free 行为不变。
+- `guidance_label_mode=true` 只改变防御 guidance target：Stage 2 diffusion guidance 和 Stage 3 guided DDIM/refinement 使用真实网站标签映射到 frozen surrogate class position，而不是 prefix pseudo label。
+- Stage 1、condition encoder、candidate-cell generation 和 profile/preference 逻辑保持不变。true-label 模式用于 label-dependent upper-bound 消融，不作为可部署 label-free 主线结论。
+
 ## 2026-07-16 更新说明：用户固定二元偏好子池
 
 - DMMPv3 主线将用户偏好从“每次 visit 随机选择 pair/triple 组合并重新采样 Dirichlet 权重”改为“每个用户建档时固定一个二元偏好子池组合，并固定两项随机权重”。五个偏好 primitive 仍然保留，但它们只作为 Stage 1 已选 executable candidate cells 上的偏好引导源，而不是硬性防御机制。

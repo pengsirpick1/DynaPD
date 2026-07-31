@@ -6,6 +6,12 @@
 - `--stage` 是正式入口参数：`all` 跑完整流水线，`1` 只跑 Stage 1，`2`/`3` 复用指定 run 并检查前置 artifacts。
 - attack eval 默认复用当前 run 缓存；`--force_retrain` 用于显式重训。新训练出的 checkpoint 必须落入当前指定目录，历史 fixed checkpoint 仅能作为经过兼容性验证的固定评估器引用。
 
+## 2026-07-20 Label-dependent guidance 消融决策
+
+- 新增 `guidance_label_mode`，默认值为 `pseudo`，保持 2026-07-14 的 label-free Stage 2/3 主线不变。
+- 只有显式设置 `guidance_label_mode=true` 时，Stage 2 diffusion guidance 和 Stage 3 guided DDIM/continuous refinement 的 target 才使用真实网站标签映射到 frozen surrogate class position。
+- `true` 模式必须作为 label-dependent oracle / upper-bound ablation 报告，不得写成可部署的 label-free 防御结果；Stage 1、encoder、candidate scorer 和 profile/preference 条件逻辑不因该开关改变。
+
 ## 已确认决策
 
 ### 2026-07-14：DMMPv3 作为并列新工程创建
@@ -103,3 +109,10 @@ DMMPv3 第一版正式实验只设计 `0.30` 带宽开销。历史 sweep 中出�
 很高，pseudo target 与 true label 基本一致。将 train-split per-class saliency prior 注入候选生成后，`w=0.35` 可进一步降低
 DF defended accuracy，但会降低 deployable coverage，并未同时改善 RF。因此后续若继续该路线，应把 class prior 作为待网格搜索的
 候选空间偏置，而不是直接作为默认方法。
+## 2026-07-28 Stage A 独立关键点发现闭环
+
+- 新增 Stage A：`Counterfactual TAM Keypoint Discovery`，代码位于 `dmmp/stage_a`，入口位于 `scripts/stage_a_*.py`，配置样例位于 `configs/stage_a`，说明位于 `stage_a/README.md`。
+- Stage A 不直接生成防御策略，而是为 clean TAM 样本生成样本级关键点图 `S_i`，再聚类为关键点模式簇 `c_i`，作为后续 Stage B/C 的位置先验和人工审核依据。
+- 第一版以 fixed RF checkpoint 作为忠实 TAM 攻击器；现有 fixed DF checkpoint 原生输入是 `sign(trace)->[1,5000]`，因此 Stage A 中的 DF/TAM 路径仅作为近似 adapter，不能优先作为正式解释结论。
+- 对现有 fixed RF checkpoint，`W=200` 只作为快速 smoke；正式 RF keypoint audit 应优先用原生 `W=1800`，避免 downsample/upsample 损伤攻击器输入。
+- 2026-07-28 quick audit 已保存到 `results/stage_a_rf_native_w1800_n96_s60_seed0`。该 run 使用 96 条 test 样本、60 步 DynaMask 优化，适合作为闭环验证和初步模式观察，不作为全量正式统计结论。

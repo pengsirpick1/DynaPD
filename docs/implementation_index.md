@@ -3,8 +3,8 @@
 ## 2026-07-14 实现更新
 
 - `dmmp\diffusion\profile_pipeline.py::run_v4_pipeline` 现在按 `DefenseConfig.stage` 执行 `1`、`2`、`3`、`all`；Stage 2/3 通过 `_require_artifacts` 检查前置产物，Stage 3 复用 `stage2_user_diffusion` 下的 encoder/diffusion/profile artifacts。
-- `dmmp\guidance\strong_surrogates.py::surrogate_pseudo_label_positions` 为 Stage 2/3 defense guidance 提供 label-free guidance targets：从 frozen DF/RF observed-prefix prediction 得到 pseudo label position。
-- `dmmp\diffusion\profile_pipeline.py::train_v4_diffusion` 和 `generate_v4_ragged_dataset` 保存真实 `y` 用于 metadata/评测，但传入 guided DDIM、continuous refinement 和 risk guard 的 target 来自 observed-prefix pseudo labels。
+- `dmmp\guidance\strong_surrogates.py::resolve_guidance_positions` 为 Stage 2/3 defense guidance 选择 target：默认 `guidance_label_mode=pseudo` 时从 frozen DF/RF observed-prefix prediction 得到 label-free pseudo label position；显式 `true` 时使用真实标签映射到 frozen surrogate class position，作为 oracle / upper-bound 消融。
+- `dmmp\diffusion\profile_pipeline.py::train_v4_diffusion` 和 `generate_v4_ragged_dataset` 保存真实 `y` 用于 metadata/评测；默认主线传入 guided DDIM、continuous refinement 和 risk guard 的 target 来自 observed-prefix pseudo labels，`guidance_label_mode=true` 仅用于 label-dependent 消融。
 - `dmmp\evaluation\profile_attacks.py::run_v4_attack_evaluation` 默认复用当前 run 的 attack eval 缓存，`AttackConfig.force_retrain` / `scripts\run_attack_eval.py --force_retrain` 可强制重训。
 
 本文档按当前 `D:\learning\TOR\defence\DMMPv3` 中已经迁移完成的代码生成，用来回答“代码放在哪里、入口调用哪一层、结果写到哪里”。
@@ -33,6 +33,10 @@
 | `scripts\validate_strong_surrogates.py` | 快速验证 DF/RF surrogate 梯度连通性。 | `dmmp.guidance.strong_surrogates` |
 | `scripts\validate_v4.py` | 验证迁移流程的阶段性正确性。 | `dmmp.diffusion.profile_pipeline` |
 | `scripts\verify_project.py` | 检查 Harness 结构和默认结果目录。 | `dmmp.utils.config.DefenseConfig` |
+| `scripts\stage_a_run_dyn_mask.py` | Stage A：在冻结 DF/RF 上为 TAM 样本生成 deletion-style DynaMask 关键点图。 | `dmmp.stage_a.dyn_mask`、`dmmp.stage_a.modeling` |
+| `scripts\stage_a_cluster_masks.py` | Stage A：对关键点图做 PCA+KMeans 聚类并输出 prototype 与审核图。 | `dmmp.stage_a.clustering`、`dmmp.stage_a.viz` |
+| `scripts\stage_a_summarize_results.py` | Stage A：汇总 mask、扰动效果和簇级解释指标。 | `dmmp.stage_a.clustering` |
+| `scripts\stage_a_train_mask_predictor.py` | Stage A 可选扩展：用 teacher masks 训练轻量 TAM mask predictor。 | `dmmp.stage_a.student` |
 
 ## Package 分层
 
@@ -60,6 +64,7 @@
 | `dmmp\utils` | `config.py` | `DefenseConfig`、`AttackConfig` 和 CSV 参数解析。 |
 | `dmmp\utils` | `common.py` | logging、seed、device、JSON/CSV/NPZ 写入工具。 |
 | `dmmp\losses` | `__init__.py` | 预留给后续 loss 抽取。 |
+| `dmmp\stage_a` | `dyn_mask.py`、`tam.py`、`modeling.py`、`clustering.py`、`viz.py`、`student.py` | Counterfactual TAM keypoint discovery：TAM 载入、冻结攻击器适配、DynaMask 优化、聚类、可视化和 teacher-student 预留。 |
 
 ## 阶段到代码的对应关系
 
@@ -72,6 +77,7 @@
 | Stage 3 | guided DDIM sampling、projection、refinement、renderer。 | `dmmp\diffusion\profile_pipeline.py`、`dmmp\projection\padding.py` |
 | fixed evaluation | fixed DF/RF 评测 fresh defended test。 | `dmmp\evaluation\profile_attacks.py` |
 | mixed evaluation | clean + defended 训练 mixed DF/RF，评测 fresh deployment test。 | `dmmp\evaluation\profile_attacks.py` |
+| Stage A keypoint discovery | 对 clean TAM 样本提取关键点图、聚类成关键点模式簇、输出 prototype 和人工审核图。 | `dmmp\stage_a\*`、`scripts\stage_a_*.py` |
 
 ## 结果归属
 

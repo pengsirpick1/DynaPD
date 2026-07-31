@@ -1,0 +1,20 @@
+{
+  "attacker": "rf",
+  "ratio": 0.10,
+  "sanity_ratios": "0.05,0.10,0.15,0.20,0.25",
+  "closing_kernel": 5,
+  "merge_gap": 8,
+  "max_windows": 6,
+  "offsets": "0,-4,-8,-16,-32",
+  "doses": "1,2,4,8,16,32",
+  "direction_modes": "out-only,in-only,both-equal,current-ratio",
+  "budget_ratios": "0.02,0.05,0.10",
+  "budget_methods": "random,random_window,early,magnitude,dynamask_same,dynamask_causal",
+  "min_effective_top1_drop": 0.30,
+  "batch_size": 128,
+  "renderer_top_actions": 1,
+  "renderer_coordinate": "rf_tam",
+  "renderer_strategy": "uniform_in_patch",
+  "rf_num_slots": 1800,
+  "checkpoint": "D:\\learning\\TOR\\results\\dmmp2_v5_fixed_oriented_seed0_bwo30\\attack_eval\\fixed\\rf\\fixed_rf_checkpoint.pt"
+}

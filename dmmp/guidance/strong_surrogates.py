@@ -74,6 +74,11 @@ def _class_positions(labels: np.ndarray, classes: np.ndarray) -> np.ndarray:
     return np.asarray([lookup[int(label)] for label in labels], dtype=np.int64)
 
 
+def class_positions(labels: np.ndarray, classes: np.ndarray) -> np.ndarray:
+    """Map raw site labels to contiguous surrogate classifier output positions."""
+    return _class_positions(np.asarray(labels), np.asarray(classes))
+
+
 @torch.no_grad()
 def surrogate_pseudo_label_positions(
     raw: np.ndarray,
@@ -129,6 +134,85 @@ def surrogate_pseudo_label_positions(
         "guidance_pseudo_target_samples": float(len(position_np)),
         "guidance_pseudo_target_mean_confidence": float(np.mean(confidence_np)) if len(confidence_np) else 0.0,
         "guidance_pseudo_target_attacker_agreement": float(np.mean(agreement_np)) if len(agreement_np) else 0.0,
+    }
+
+
+@torch.no_grad()
+def resolve_guidance_positions(
+    raw_or_prefix: np.ndarray,
+    labels: np.ndarray | None,
+    bundle: StrongSurrogateBundle,
+    cfg,
+    device: torch.device,
+) -> tuple[np.ndarray, dict[str, float | str]]:
+    mode = str(getattr(cfg, "guidance_label_mode", "pseudo")).strip().lower()
+    if mode == "pseudo":
+        positions, metrics = surrogate_pseudo_label_positions(raw_or_prefix, bundle, cfg, device)
+        return positions, {
+            **metrics,
+            "guidance_label_mode": "pseudo",
+            "guidance_target_samples": float(len(positions)),
+        }
+    if mode != "true":
+        raise ValueError(f"Unsupported guidance_label_mode={mode!r}; expected 'pseudo' or 'true'")
+    if labels is None:
+        raise ValueError("guidance_label_mode='true' requires true site labels")
+    label_rows = np.asarray(labels)
+    if len(label_rows) != len(raw_or_prefix):
+        raise ValueError(
+            "guidance_label_mode='true' requires one label per guidance row; "
+            f"got labels={len(label_rows)} rows={len(raw_or_prefix)}"
+        )
+    try:
+        positions = _class_positions(label_rows, bundle.classes)
+    except KeyError as exc:
+        missing = int(exc.args[0])
+        raise ValueError(
+            f"True label {missing} is not present in the frozen surrogate class set"
+        ) from exc
+    rows = np.asarray(raw_or_prefix)
+    batch_size = max(1, int(cfg.surrogate_gradient_batch_size))
+    confidences = []
+    agreements = []
+    normalized_weights = {
+        name: float(bundle.weights.get(name, 1.0))
+        for name in bundle.attacker_names
+    }
+    weight_total = sum(normalized_weights.values()) or 1.0
+    normalized_weights = {name: value / weight_total for name, value in normalized_weights.items()}
+    for start in range(0, len(rows), batch_size):
+        end = min(start + batch_size, len(rows))
+        context = build_attack_context(rows[start:end], cfg, device)
+        zero = torch.zeros((end - start, 2, int(cfg.patch_num)), dtype=torch.float32, device=device)
+        logits = bundle.logits_from_allocation(zero, context)
+        position_t = torch.as_tensor(positions[start:end], dtype=torch.long, device=device)
+        weighted_probs = None
+        predictions = []
+        for name, values in logits.items():
+            probs = torch.softmax(values, dim=1)
+            weighted = probs * float(normalized_weights.get(name, 1.0))
+            weighted_probs = weighted if weighted_probs is None else weighted_probs + weighted
+            predictions.append(probs.argmax(dim=1))
+        if weighted_probs is None:
+            raise RuntimeError("No frozen surrogate models are available for true-label guidance targets")
+        confidences.append(weighted_probs.gather(1, position_t.reshape(-1, 1)).reshape(-1).cpu().numpy().astype(np.float32))
+        if predictions:
+            stacked = torch.stack(predictions, dim=1)
+            agreements.append((stacked == position_t.reshape(-1, 1)).float().mean(dim=1).cpu().numpy())
+        else:
+            agreements.append(np.zeros((end - start,), dtype=np.float32))
+    confidence_np = np.concatenate(confidences, axis=0).astype(np.float32) if confidences else np.zeros((0,), dtype=np.float32)
+    agreement_np = np.concatenate(agreements, axis=0).astype(np.float32) if agreements else np.zeros((0,), dtype=np.float32)
+    return positions, {
+        "guidance_label_mode": "true",
+        "guidance_target_source": "true_site_label",
+        "guidance_target_samples": float(len(positions)),
+        "guidance_true_target_samples": float(len(positions)),
+        "guidance_true_target_unique_labels": float(len(np.unique(label_rows))) if len(label_rows) else 0.0,
+        "guidance_true_target_mean_confidence": float(np.mean(confidence_np)) if len(confidence_np) else 0.0,
+        "guidance_true_target_attacker_agreement": float(np.mean(agreement_np)) if len(agreement_np) else 0.0,
+        "guidance_pseudo_target_mean_confidence": 0.0,
+        "guidance_pseudo_target_attacker_agreement": 0.0,
     }
 
 

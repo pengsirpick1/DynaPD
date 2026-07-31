@@ -1,0 +1,13 @@
+{
+  "attacker": "rf",
+  "width": 200,
+  "split": "test",
+  "max_samples": 100,
+  "steps": 300,
+  "learning_rate": 0.05,
+  "lambda_l1": 0.001,
+  "lambda_tv": 0.01,
+  "target_keep_ratio": 0.10,
+  "baseline_kernel": 9,
+  "checkpoint": "D:\\learning\\TOR\\results\\dmmp2_v5_fixed_oriented_seed0_bwo30\\attack_eval\\fixed\\rf\\fixed_rf_checkpoint.pt"
+}
