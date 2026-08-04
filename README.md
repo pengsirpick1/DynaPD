@@ -50,7 +50,22 @@ Completion b30 ε=0.5, Full CW Test (10564 samples), Server T640g0 RTX 4090
 | TF | Held-out | 96.16% | **10.20%** | 89.80% |
 | **WC** | — | — | **13.37%** | — |
 
-All 3 surrogate flipped: 78.75% | Mean BW: 24.50% | Mean actions: 12.09
+All 3 surrogate flipped: 78.75% | Mean BW: 24.50% | Mean actions: 12.09 | Mean delay: 5.35 bins
+
+### Overhead
+
+| Metric | Value |
+|------|------|
+| Mean BW | 24.50% |
+| Median BW | 29.99% |
+| P90 BW | 30.03% |
+| P95 BW | 30.06% |
+| Max BW | 30.77% |
+| Mean Actions | 12.09 |
+| Mean Delay | 5.35 bins |
+| Stop: all_flipped | 78.75% (8319/10564) |
+| Stop: no_robust | 21.13% (2232/10564) |
+| Stop: bw_reached | 0.12% (13/10564) |
 
 ### Evolution
 
