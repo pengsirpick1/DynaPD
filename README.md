@@ -1,3 +1,5 @@
+**English** | [中文](README_CN.md)
+
 # DynaPD
 
 Dynamic Padding Defense against Website Fingerprinting with
