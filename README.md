@@ -16,7 +16,7 @@ selected via weighted utility scoring.
 
 | Component | Description |
 |------|-------------|
-| **Multi-Surrogate Teacher** | RF (TAM/burst), DF (DIR CNN), AWF (shallow DIR CNN) provide three distinct attack perspectives for robustness. |
+| **Multi-Surrogate Teacher** | RF (TAM/burst), DF (DIR CNN), AWF (burst CNN) provide three distinct attack perspectives for robustness. |
 | **Normalized Gain** | `gain_m = (current_margin - candidate_margin) / abs(original_margin)` makes cross-model gain comparable. |
 | **Stochastic Action Selection** | ε-greedy randomization (ε=0.5) ensures different defended traces for the same clean sample, resisting adversarial training. |
 | **Bandwidth-Aware Completion** | Two-phase: flip all models first, then fill remaining bandwidth budget (`preserve_flip_fill`). |
