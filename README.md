@@ -71,24 +71,12 @@ All 3 surrogate flipped: 78.75% | Mean BW: 24.50% | Mean actions: 12.09 | Mean d
 
 | Version | Surrogates | Budget | Random ε | Completion | WC | TF held-out |
 |------|------|------|------|------|------|------|
-| RF-only Student | RF | 10% | 0 | No | 37.96% | — |
+| RF-only (baseline) | RF | 10% | 0 | No | 37.96% | — |
 | E2b (512) | RF+DF+AWF | 15% | 0 | No | 17.77% | 17.77% |
 | E2b (Full CW) | RF+DF+AWF | 15% | 0 | No | 17.84% | 17.84% |
 | **Completion (Full CW)** | **RF+DF+AWF** | **30%** | **0.5** | **Yes** | **13.37%** | **10.20%** |
 
 WC: RF-only baseline 37.96% → Completion 13.37% (-24.59pp)
-
-## Anti-Adversarial Training (512 subset preview)
-
-| Method | BW | DF Adaptive | AWF Adaptive |
-|------|------|------|------|
-| E2b b20 ε=0.1, no completion | 7.60% | 65.04% | 81.64% |
-| Completion b20 ε=0.5 | 17.51% | 17.19% | 18.36% |
-| Completion b30 ε=0.5 | 25.13% | 11.72% | 14.84% |
-
-Without randomization + completion, 2 epochs of adversarial fine-tuning
-break the defense (65-82% recovery). With both, adaptive recovery drops
-to 12-18%.
 
 ## Install
 
@@ -211,9 +199,9 @@ scripts/
   stage_b_run_ensemble_oracle_e2b.py          # E2b base (RF+DF+AWF)
   stage_b_run_ensemble_oracle_e2b_completion.py  # E2b + Completion + Randomization
   stage_b_run_ensemble_oracle_e2b_rand.py     # E2b + Randomization
-  stage_b_build_policy_dataset.py             # Student policy data
-  stage_b_train_candidate_policy.py           # Student training
-  stage_b_run_student_policy_controller.py    # Student inference
+  stage_b_build_policy_dataset.py             # (deprecated) policy data
+  stage_b_train_candidate_policy.py           # (deprecated) policy training
+  stage_b_run_student_policy_controller.py    # (deprecated) policy controller
   stage_b_eval_candidate_policy_offline.py    # Offline evaluation
 ```
 

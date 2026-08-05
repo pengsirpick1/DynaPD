@@ -67,7 +67,7 @@ Completion b30 ε=0.5，全量 CW Test（10564 条），T640g0 RTX 4090
 
 | 版本 | 替代模型 | 预算 | 随机ε | Completion | WC | TF held-out |
 |------|------|------|------|------|------|------|
-| RF-only Student | RF | 10% | 0 | 无 | 37.96% | — |
+| RF-only（基线） | RF | 10% | 0 | 无 | 37.96% | — |
 | E2b (512) | RF+DF+AWF | 15% | 0 | 无 | 17.77% | 17.77% |
 | E2b (全量) | RF+DF+AWF | 15% | 0 | 无 | 17.84% | 17.84% |
 | **Completion (全量)** | **RF+DF+AWF** | **30%** | **0.5** | **有** | **13.37%** | **10.20%** |
@@ -195,9 +195,9 @@ scripts/
   stage_b_run_ensemble_oracle_e2b.py          # E2b 基础版
   stage_b_run_ensemble_oracle_e2b_completion.py  # E2b + Completion + 随机化
   stage_b_run_ensemble_oracle_e2b_rand.py     # E2b + 随机化
-  stage_b_build_policy_dataset.py             # Student 策略数据
-  stage_b_train_candidate_policy.py           # Student 训练
-  stage_b_run_student_policy_controller.py    # Student 推理
+  stage_b_build_policy_dataset.py             # (已弃用) 策略数据
+  stage_b_train_candidate_policy.py           # (已弃用) 策略训练
+  stage_b_run_student_policy_controller.py    # (已弃用) 策略控制器
 ```
 
 ## 实验文档
