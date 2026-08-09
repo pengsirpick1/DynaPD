@@ -26,6 +26,7 @@ stage_a/outputs/
 *.npy
 *.pkl
 *.pickle
+*.tar.gz
 
 # Local/editor/system files
 .codegraph/

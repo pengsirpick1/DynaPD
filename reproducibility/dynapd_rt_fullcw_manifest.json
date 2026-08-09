@@ -1,0 +1,125 @@
+{
+  "run_name": "DynaPD-RT full-CW non-adaptive audit",
+  "generated_at": "2026-08-08T14:59:24.520665",
+  "method": "DynaPD-RT / ErD+ReD-Fast: offline 3-model experience -> utility table -> online table lookup + burst-tail dummy + bounded delay. No online 3-model calls.",
+  "split_spec": {
+    "utility_train_range": "[0, 256)",
+    "eval_range": "[256, 10564)",
+    "overlap": 0,
+    "eval_n": 10308,
+    "dataset": "CW test.npz (10564)",
+    "seed": 202,
+    "note": "utility table trained on [0,256), eval excludes it entirely"
+  },
+  "components": {
+    "utility_table": "results/frugal_lite_utility.npy",
+    "utility_table_builder": "build_frugal_utility.py",
+    "audit_eval_script": "audit_fast.py",
+    "causality_audit_path": "results/night_batch_20260805/audit_fullcw.log",
+    "export_npz_path": "results/night_batch_20260805/dynapd_rt_defended_{seed}_{method}.npz (TODO: adaptive 需要导出)",
+    "attack_models": {
+      "RF": "models/attacks/fixed_rf_checkpoint.pt",
+      "DF": "wflib_copy/checkpoints/CW/DF/dynapd_clean_seed0.pth",
+      "TF": "wflib_copy/checkpoints/CW/TF/dynapd_clean_seed0.pth",
+      "AWF": "wflib_copy/checkpoints/CW/AWF/dynapd_clean_seed0.pth",
+      "VarCNN": "wflib_copy/checkpoints/CW/VarCNN/dynapd_clean_seed0.pth"
+    },
+    "varCNN_feature": "DT2 (direction + inter-arrival time diff), NOT sign-only"
+  },
+  "main_results": {
+    "A_wtf_baseline": {
+      "WC": 0.3512,
+      "RF": 0.3512,
+      "DF": 0.1415,
+      "TF": 0.0934,
+      "AWF": 0.0924,
+      "VarCNN": 0.2544,
+      "BW": 0.2337,
+      "mean_delay_bins": 0,
+      "p95_delay_bins": 0,
+      "max_delay_bins": 0,
+      "p95_delay_sec": 0.0,
+      "compute_ms": 11.0,
+      "causality_violations": "0/0",
+      "role": "baseline (burst-tail padding only)"
+    },
+    "B_wtf_delay_baseline": {
+      "WC": 0.0983,
+      "RF": 0.076,
+      "DF": 0.0593,
+      "TF": 0.0558,
+      "AWF": 0.0545,
+      "VarCNN": 0.0983,
+      "BW": 0.2337,
+      "mean_delay_bins": 33,
+      "p95_delay_bins": 61,
+      "max_delay_bins": 64,
+      "p95_delay_sec": 2.7,
+      "compute_ms": 13.6,
+      "causality_violations": "0/266355",
+      "role": "STRONG baseline/ablation (burst-tail full coverage + bounded delay)"
+    },
+    "C_frugal_main": {
+      "WC": 0.1642,
+      "RF": 0.1382,
+      "DF": 0.118,
+      "TF": 0.1052,
+      "AWF": 0.096,
+      "VarCNN": 0.1642,
+      "BW": 0.1442,
+      "mean_delay_bins": 33,
+      "p95_delay_bins": 61,
+      "max_delay_bins": 64,
+      "p95_delay_sec": 2.7,
+      "compute_ms": 10.3,
+      "causality_violations": "0/266355",
+      "role": "MAIN method - bandwidth-efficient (utility table + delay)"
+    },
+    "F_full_util_main": {
+      "WC": 0.1401,
+      "RF": 0.1093,
+      "DF": 0.0905,
+      "TF": 0.0825,
+      "AWF": 0.0832,
+      "VarCNN": 0.1401,
+      "BW": 0.17,
+      "mean_delay_bins": 33,
+      "p95_delay_bins": 61,
+      "max_delay_bins": 64,
+      "p95_delay_sec": 2.7,
+      "compute_ms": 11.0,
+      "causality_violations": "0/266355",
+      "role": "MAIN method - balanced (full coverage + utility + delay)"
+    }
+  },
+  "reference_points": {
+    "three_model_ErD_ReD_online": {
+      "WC": 0.209,
+      "BW": 0.26,
+      "compute": "~9s/trace"
+    },
+    "oracle_offline": {
+      "WC": 0.121,
+      "BW": 0.256
+    },
+    "no_defense": {
+      "WC": 0.9844
+    }
+  },
+  "causality_audit": {
+    "total_actions": 266355,
+    "violations": 0,
+    "rule": "decision_bin <= affected_start (delay only shifts timestamps forward)",
+    "no_future_read": true,
+    "no_true_label_use": true,
+    "path": "results/night_batch_20260805/audit_fullcw.log (viol=0/266355 per method)"
+  },
+  "scope_notes": [
+    "non-adaptive full-CW seed202",
+    "adaptive retrain NOT tested yet",
+    "official WTF-PAD same-caliber comparison NOT tested yet (B is simplified burst-tail)",
+    "p95 delay ~2.7s is real time overhead (bandwidth-free but NOT latency-free)",
+    "utility table trained on [0,256) - leakage-free by construction"
+  ],
+  "conclusion": "DynaPD-RT compresses offline 3-model action utility into an online lookup table. On full-CW 10308 leak-free eval: F_full_util 14.0% WC @ 17.0% BW, C_frugal 16.4% @ 14.4% BW, compute 10-11ms/trace (vs ~9s for 3-model online search), 266355 actions 0 causality violations. B_wtf_delay (9.8%) is a strong baseline/ablation, not the main method."
+}

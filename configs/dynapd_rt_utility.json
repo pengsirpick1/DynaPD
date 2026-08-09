@@ -1,0 +1,28 @@
+{
+  "description": "DynaPD-RT compact utility table calibrated from offline RF/DF/AWF surrogate gains. Negative values are favorable under the original margin-change sign convention.",
+  "calibration": {
+    "dataset": "CW test prefix",
+    "n_calib": 256,
+    "surrogate_weights": {
+      "RF": 0.8,
+      "DF": 0.1,
+      "AWF": 0.1
+    },
+    "phases": {
+      "early": "bin < 600",
+      "mid": "600 <= bin < 1200",
+      "late": "bin >= 1200"
+    }
+  },
+  "utility": {
+    "early": {
+      "out": {"1": -0.0010, "2": -0.0034, "4": -0.0120, "8": -0.0396}
+    },
+    "mid": {
+      "out": {"1": -0.0009, "2": -0.0021, "4": -0.0069, "8": -0.0266}
+    },
+    "late": {
+      "out": {"1": -0.0015, "2": -0.0029, "4": -0.0081, "8": -0.0295}
+    }
+  }
+}

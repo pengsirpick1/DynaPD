@@ -1,0 +1,15 @@
+{
+  "variant": "streaming_tail1",
+  "n": 105730,
+  "workers": 20,
+  "chunk_size": 1024,
+  "generation_total_sec": 198.05962586402893,
+  "generation_ms_per_trace": 1.873258544065345,
+  "raw_bw_mean": 0.17344674800739887,
+  "bursts_mean": 24.65269081623002,
+  "inj_total_mean": 283.2717298779911,
+  "tail_mean": 1.0,
+  "delay_windows_mean": 23.313931712853496,
+  "audit_past_total": 135801716,
+  "audit_future_total": 0
+}

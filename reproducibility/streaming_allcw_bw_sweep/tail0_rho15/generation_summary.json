@@ -1,0 +1,16 @@
+{
+  "variant": "tail0_rho15",
+  "rho": 0.15,
+  "n": 105730,
+  "workers": 20,
+  "chunk_size": 1024,
+  "generation_total_sec": 188.4558289051056,
+  "generation_ms_per_trace": 1.7824253183117904,
+  "raw_bw_mean": 0.10555975959103368,
+  "bursts_mean": 23.65269081623002,
+  "inj_total_mean": 167.52688924619312,
+  "tail_mean": 0.0,
+  "delay_windows_mean": 20.805911283457863,
+  "audit_past_total": 119808224,
+  "audit_future_total": 0
+}

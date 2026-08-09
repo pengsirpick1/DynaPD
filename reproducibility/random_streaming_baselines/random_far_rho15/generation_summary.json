@@ -1,0 +1,16 @@
+{
+  "variant": "random_far_rho15",
+  "mode": "random_far",
+  "rho": 0.15,
+  "n": 105730,
+  "workers": 20,
+  "chunk_size": 1024,
+  "generation_total_sec": 200.1285741329193,
+  "generation_ms_per_trace": 1.892826767548655,
+  "raw_bw_mean": 0.1051570715019295,
+  "bursts_mean": 23.65269081623002,
+  "inj_total_mean": 167.52688924619312,
+  "delay_windows_mean": 20.805911283457863,
+  "audit_past_total": 126418467,
+  "audit_future_total": 0
+}

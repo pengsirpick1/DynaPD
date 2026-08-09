@@ -210,3 +210,36 @@ scripts/
 This is a research release. Datasets, checkpoints, and experiment outputs are
 not included. The current main line uses `RF + DF + AWF` as the Teacher
 surrogate set with completion and stochastic action selection.
+
+## DynaPD-RT: Causal Streaming Deployment
+
+This release also includes **DynaPD-RT**, the label-free real-time branch of
+DynaPD. The runtime controller maintains only packet/burst state and a compact
+offline-calibrated `(phase, direction, dose)` utility table. At an observed
+download-burst ending, it applies bounded recent-window delay and burst-tail
+dummy insertion under a running token budget. It neither reads future packets
+nor queries RF/DF/AWF/VarCNN online.
+
+```python
+from streaming_state_machine import defend_stream
+
+defended_trace = defend_stream(clean_trace, seed=0, rho=0.25)
+```
+
+The deployment-oriented `tail0` protocol was evaluated on 105,730 CW traces:
+worst-case accuracy 15.31% at 16.36% measured bandwidth overhead, with zero
+future-packet accesses in the recorded causality audit. The full bandwidth
+sweep, matched random baselines and JSON manifests are in
+[docs/RESULTS.md](docs/RESULTS.md) and `reproducibility/`.
+
+Relevant entry points:
+
+```bash
+python streaming_allcw_mp.py --help
+python streaming_allcw_bw_sweep.py --help
+python random_streaming_baseline_bw_sweep.py --help
+```
+
+`tail1` and the batch full-information controller are ablations/upper bounds,
+not deployment claims. Datasets, clean attacker checkpoints, WFlib code and
+generated defended traces remain excluded from this repository.

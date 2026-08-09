@@ -1,0 +1,15 @@
+{
+  "variant": "batch_fullinfo",
+  "n": 105730,
+  "workers": 20,
+  "chunk_size": 1024,
+  "generation_total_sec": 193.88548684120178,
+  "generation_ms_per_trace": 1.8337793137350022,
+  "raw_bw_mean": 0.17201215253027197,
+  "bursts_mean": 24.65269081623002,
+  "inj_total_mean": 314.96352974557834,
+  "tail_mean": 0.0,
+  "delay_windows_mean": 24.64107632649201,
+  "audit_past_total": 0,
+  "audit_future_total": 0
+}

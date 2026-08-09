@@ -1,0 +1,16 @@
+{
+  "variant": "random_recent_rho25",
+  "mode": "random_recent",
+  "rho": 0.25,
+  "n": 105730,
+  "workers": 20,
+  "chunk_size": 1024,
+  "generation_total_sec": 192.4504177570343,
+  "generation_ms_per_trace": 1.8202063535139914,
+  "raw_bw_mean": 0.1635003269206548,
+  "bursts_mean": 23.65269081623002,
+  "inj_total_mean": 264.3591884990069,
+  "delay_windows_mean": 22.390570320628015,
+  "audit_past_total": 140776217,
+  "audit_future_total": 0
+}

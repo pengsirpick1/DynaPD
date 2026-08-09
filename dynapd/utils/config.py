@@ -99,7 +99,9 @@ class DefenseConfig:
     num_val_profiles: int = 8
     num_test_profiles: int = 8
     profile_seed: int = 17000
-    profile_secret: str = "dmmpv3-private-experiment-key"
+    # Public deterministic seed for synthetic profile construction. This is not
+    # a credential and can be overridden in experiment configurations.
+    profile_secret: str = "dynapd-public-profile-seed"
     profile_combination_mode: str = "fixed_pair"
     active_pair_count: int = 1
     active_triple_count: int = 0
