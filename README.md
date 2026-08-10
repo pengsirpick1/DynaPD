@@ -1,224 +1,53 @@
-**English** | [中文](README_CN.md)
+[中文](README_CN.md) | **English**
 
 # DynaPD
 
-Dynamic Padding Defense against Website Fingerprinting with
-**Multi-Surrogate Teacher Optimization** and **Stochastic Completion**.
+**Dynamic Traffic Perturbation against Website Fingerprinting**
 
-## Overview
+DynaPD is a research framework for defending closed-world website fingerprinting
+(WF). It has two complementary branches with deliberately different operating
+assumptions:
 
-DynaPD generates defended traffic traces by iteratively injecting dummy
-packets and redistributing delays at RF-identified keypoints. Candidate
-actions are evaluated against a panel of surrogate attack models and
-selected via weighted utility scoring.
+| Branch | Goal | Information available at decision time |
+|---|---|---|
+| **Offline DynaPD** | High-effectiveness dynamic defense and robustness studies | Complete trace and multi-surrogate feedback |
+| **DynaPD-RT** | Causal, label-free streaming deployment | Current and past packets only |
 
-### Key Innovations
+The repository contains source code, compact public configurations, and
+reproducibility records. CW traces, attacker checkpoints, WFlib source,
+generated defended traces, and logs are intentionally excluded.
 
-| Component | Description |
-|------|-------------|
-| **Multi-Surrogate Teacher** | RF (TAM/burst), DF (DIR CNN), AWF (burst CNN) provide three distinct attack perspectives for robustness. |
-| **Normalized Gain** | `gain_m = (current_margin - candidate_margin) / abs(original_margin)` makes cross-model gain comparable. |
-| **Stochastic Action Selection** | ε-greedy randomization (ε=0.5) ensures different defended traces for the same clean sample, resisting adversarial training. |
-| **Bandwidth-Aware Completion** | Two-phase: flip all models first, then fill remaining bandwidth budget (`preserve_flip_fill`). |
-| **Representation-Family Coverage** | Surrogates chosen to cover DIR, burst, and timing feature families rather than model names. |
+## Method at a glance
 
-### Design Philosophy
+```text
+Offline DynaPD
+complete trace -> candidate generation -> RF / DF / AWF gain evaluation
+               -> constrained action selection -> dummy + delay
 
-```
-Clean trace
-    ↓
-RF keypoints → stratified Top128 candidates (5D cross-product)
-    ↓
-3-model evaluation (RF / DF / AWF)
-    ↓
-Weighted score = 0.8×gain_rf + 0.1×gain_df + 0.1×gain_awf - λ×cost
-    ↓
-ε-greedy select → apply action → loop until flipped or budget exhausted
-    ↓
-Completion: fill remaining bandwidth with random valid actions
+DynaPD-RT
+arriving packets -> running budget + download-burst state -> utility lookup
+                 -> burst-tail dummy + bounded causal delay
 ```
 
-## Current Best Results
+### Offline DynaPD
 
-Completion b30 ε=0.5, Full CW Test (10564 samples), Server T640g0 RTX 4090
+The offline controller builds a stratified Top-128 action set and scores each
+candidate with normalized margin reduction across three complementary WF
+surrogates: RF (TAM/burst), DF (direction sequence), and AWF (burst family).
+The main deterministic setting is `norm_weighted_r80_d10_v10`, with
+RF/DF/AWF weights `0.80/0.10/0.10`.
 
-| Model | Role | Clean Acc | Defended Acc | Flip |
-|------|------|------|------|------|
-| RF | Teacher | 97.66% | **13.37%** | 86.59% |
-| DF | Teacher | 98.25% | 9.94% | 89.91% |
-| AWF | Teacher | 94.86% | 4.95% | 95.05% |
-| TF | Held-out | 96.16% | **10.20%** | 89.80% |
-| **WC** | — | — | **13.37%** | — |
+Randomized selection and bandwidth completion are research variants for
+studying robustness under adaptive attackers. They are not used by the RT
+deployment path.
 
-All 3 surrogate flipped: 78.75% | Mean BW: 24.50% | Mean actions: 12.09 | Mean delay: 5.35 bins
+### DynaPD-RT
 
-### Overhead
-
-| Metric | Value |
-|------|------|
-| Mean BW | 24.50% |
-| Median BW | 29.99% |
-| P90 BW | 30.03% |
-| P95 BW | 30.06% |
-| Max BW | 30.77% |
-| Mean Actions | 12.09 |
-| Mean Delay | 5.35 bins |
-| Stop: all_flipped | 78.75% (8319/10564) |
-| Stop: no_robust | 21.13% (2232/10564) |
-| Stop: bw_reached | 0.12% (13/10564) |
-
-### Evolution
-
-| Version | Surrogates | Budget | Random ε | Completion | WC | TF held-out |
-|------|------|------|------|------|------|------|
-| RF-only (baseline) | RF | 10% | 0 | No | 37.96% | — |
-| E2b (512) | RF+DF+AWF | 15% | 0 | No | 17.77% | 17.77% |
-| E2b (Full CW) | RF+DF+AWF | 15% | 0 | No | 17.84% | 17.84% |
-| **Completion (Full CW)** | **RF+DF+AWF** | **30%** | **0.5** | **Yes** | **13.37%** | **10.20%** |
-
-WC: RF-only baseline 37.96% → Completion 13.37% (-24.59pp)
-
-## Install
-
-```bash
-git clone https://github.com/pengsirpick1/DynaPD.git
-cd DynaPD
-conda create -n pyda python=3.10
-conda activate pyda
-pip install torch numpy tqdm
-pip install -e .
-```
-
-Server environment: Python 3.10.20, PyTorch 2.13.0+cu130, RTX 4090 24GB
-
-## Build Inputs
-
-Prepare the fast-keypoint archive (RF keypoints + TAM for full CW):
-
-```bash
-python scripts/stage_b_prepare_fast_keypoint_archive.py \
-  --data_root datasets/CW.npz \
-  --attacker rf \
-  --checkpoint models/attacks/fixed_rf_checkpoint.pt \
-  --split_name all \
-  --batch_size 512 \
-  --device cuda \
-  --run_name stage_b_fast_keypoint_full_cw_all_seed0
-```
-
-## Run E2b Oracle (RF+DF+AWF)
-
-Single-process 512 subset:
-
-```bash
-python scripts/stage_b_run_ensemble_oracle_e2b.py \
-  --output_dir results --run_name stage_b_e2b_512 \
-  --archive results/stage_b_fast_keypoint_full_cw_all_seed0/fast_keypoint_archive.npz \
-  --data_root datasets/CW.npz \
-  --rf_checkpoint models/attacks/fixed_rf_checkpoint.pt \
-  --df_checkpoint wflib_copy/checkpoints/CW/DF/dynapd_clean_seed0.pth \
-  --varcnn_checkpoint wflib_copy/checkpoints/CW/AWF/dynapd_clean_seed0.pth \
-  --methods norm_weighted_r80_d10_v10 \
-  --dummy_budgets 0.15 \
-  --max_samples 512 --sample_end 512 \
-  --compact_candidate_generation \
-  --candidate_batch_size 4096 \
-  --candidate_device cuda --candidate_score_device cpu \
-  --device cuda --batch_size 128 \
-  --cost_lambda 0.05 \
-  --robust_min_positive_models 1 \
-  --robust_epsilon 0.20 \
-  --max_dummy_steps 10 \
-  --export_defended_npz wflib_copy/datasets/CW/test_e2b_512_defended.npz
-```
-
-## Run Completion Oracle (Full CW, 64-shard parallel)
-
-```bash
-# Launch 64 shards, 20 workers parallel
-samples=10564
-for s in $(seq 0 63); do
-  start=$((s * samples / 64))
-  end=$(((s + 1) * samples / 64))
-  python scripts/stage_b_run_ensemble_oracle_e2b_completion.py \
-    --output_dir results/$RUN \
-    --run_name shard_$(printf '%03d' $s) \
-    --archive results/stage_b_fast_keypoint_full_cw_all_seed0/fast_keypoint_archive.npz \
-    --data_root datasets/CW.npz \
-    --rf_checkpoint models/attacks/fixed_rf_checkpoint.pt \
-    --df_checkpoint wflib_copy/checkpoints/CW/DF/dynapd_clean_seed0.pth \
-    --varcnn_checkpoint wflib_copy/checkpoints/CW/AWF/dynapd_clean_seed0.pth \
-    --methods norm_weighted_r80_d10_v10 \
-    --dummy_budgets 0.30 \
-    --max_samples $samples --sample_start $start --sample_end $end \
-    --random_epsilon 0.5 \
-    --completion_mode preserve_flip_fill \
-    --completion_target_bandwidth 0.30 --completion_topk 16 \
-    --compact_candidate_generation \
-    --candidate_batch_size 4096 \
-    --candidate_device cuda --candidate_score_device cpu \
-    --device cuda --batch_size 128 \
-    --cost_lambda 0.05 \
-    --robust_min_positive_models 1 \
-    --robust_epsilon 0.20 \
-    --max_dummy_steps 20 \
-    --seed 202 \
-    --export_defended_npz wflib_copy/datasets/CW/adapt_e2b_${RUN}_shard$(printf '%03d' $s).npz &
-done
-wait
-```
-
-## Candidate Space
-
-Actions are generated as a 5D cross-product:
-
-| Dimension | Source | Values |
-|------|------|------|
-| Windows | RF TAM keypoint peaks | up to 8 |
-| Anchors | 7 structural types | keypoint offsets, rate peaks, direction transitions, gaps, burst extensions |
-| Doses | absolute + relative | {1,2,4,8,16,32} + {10-100% of window count} |
-| Widths | injection spread | window length, half-length, 8, 16, 32 |
-| Modes | direction strategy | direction_balance, dynamask_causal |
-
-~30k raw combinations → budget-filtered → deduped → Top128 by structural score.
-
-The Top128 selection uses a structural relevance score (RF confidence × tier × dose bonus / sqrt(cost)),
-**not** per-model gain. Actual effectiveness is evaluated later by the 3 surrogates.
-
-## Layout
-
-```
-dynapd/
-  data/               CW loading and split helpers
-  stage_a/            Attacker models (RF/DF), keypoint extraction
-  stage_b/            Candidate generation, objectives, policy data
-  utils/              Runtime config, device helpers
-
-scripts/
-  stage_b_prepare_fast_keypoint_archive.py    # RF keypoint archive
-  stage_b_run_ensemble_oracle_e2b.py          # E2b base (RF+DF+AWF)
-  stage_b_run_ensemble_oracle_e2b_completion.py  # E2b + Completion + Randomization
-  stage_b_run_ensemble_oracle_e2b_rand.py     # E2b + Randomization
-  stage_b_build_policy_dataset.py             # (deprecated) policy data
-  stage_b_train_candidate_policy.py           # (deprecated) policy training
-  stage_b_run_student_policy_controller.py    # (deprecated) policy controller
-  stage_b_eval_candidate_policy_offline.py    # Offline evaluation
-```
-
-## Notes
-
-This is a research release. Datasets, checkpoints, and experiment outputs are
-not included. The current main line uses `RF + DF + AWF` as the Teacher
-surrogate set with completion and stochastic action selection.
-
-## DynaPD-RT: Causal Streaming Deployment
-
-This release also includes **DynaPD-RT**, the label-free real-time branch of
-DynaPD. The runtime controller maintains only packet/burst state and a compact
-offline-calibrated `(phase, direction, dose)` utility table. At an observed
-download-burst ending, it applies bounded recent-window delay and burst-tail
-dummy insertion under a running token budget. It neither reads future packets
-nor queries RF/DF/AWF/VarCNN online.
+DynaPD-RT distills coarse offline experience into a compact utility table
+indexed by `(phase, direction, dose)`. Online execution maintains only packet
+count, positive-direction/download-burst state, consumed token budget, and this
+table. At a burst ending it makes a bounded perturbation decision without a
+website label and without querying RF, DF, AWF, TF, or VarCNN.
 
 ```python
 from streaming_state_machine import defend_stream
@@ -226,20 +55,88 @@ from streaming_state_machine import defend_stream
 defended_trace = defend_stream(clean_trace, seed=0, rho=0.25)
 ```
 
-The deployment-oriented `tail0` protocol was evaluated on 105,730 CW traces:
-worst-case accuracy 15.31% at 16.36% measured bandwidth overhead, with zero
-future-packet accesses in the recorded causality audit. The full bandwidth
-sweep, matched random baselines and JSON manifests are in
-[docs/RESULTS.md](docs/RESULTS.md) and `reproducibility/`.
+The deployment-oriented protocol is **`tail0`**: a final unresolved burst is
+not modified unless a real timeout event is available. `tail1` is an
+end-of-trace ablation, while the batch controller is a full-information upper
+bound rather than a deployment result.
 
-Relevant entry points:
+## Main results
+
+All values below are closed-world attack accuracies, so lower is better.
+`WC` is the maximum accuracy among the evaluated attack models.
+
+### Offline DynaPD, 512-trace CW subset
+
+| Configuration | RF | DF | AWF | VarCNN held-out | TF held-out | WC |
+|---|---:|---:|---:|---:|---:|---:|
+| `norm_weighted_r80_d10_v10` | 12.70% | 8.40% | 3.32% | 7.03% | 17.77% | 17.77% |
+
+### DynaPD-RT, full CW evaluation (105,730 traces)
+
+| Variant | RF | DF | TF | AWF | VarCNN | WC | Measured bandwidth |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Streaming `tail0` | 11.72% | 15.31% | 12.01% | 9.64% | 7.21% | 15.31% | 16.36% |
+| Streaming `tail1` (ablation) | 10.13% | 13.68% | 10.43% | 8.18% | 6.07% | 13.68% | 17.34% |
+| Batch full-information upper bound | 5.85% | 5.57% | 5.90% | 6.96% | 3.53% | 6.96% | 17.20% |
+
+The `tail0` run records zero future-packet accesses in its causality audit.
+Generation used 20 CPU workers and took 1.98 ms/trace amortized; a separate
+single-trace state-machine measurement is approximately 12 ms/trace.
+
+The full bandwidth curve, matched causal random baselines, raw manifests, and
+evaluation boundaries are documented in [docs/RESULTS.md](docs/RESULTS.md).
+
+## Repository layout
+
+```text
+dynapd/                         Core data, padding, objectives, and models
+scripts/                        Offline teacher/search and evaluation scripts
+streaming_state_machine.py      DynaPD-RT causal state machine
+streaming_allcw_mp.py           Full-CW RT evaluation
+streaming_allcw_bw_sweep.py     RT bandwidth sweep
+random_streaming_baseline_bw_sweep.py
+                                 Matched causal random baselines
+configs/dynapd_rt_utility.json  Compact public RT utility table
+reproducibility/                Tracked manifests and run summaries
+docs/RESULTS.md                 Curated experimental record
+docs/REPRODUCIBILITY.md         Data, split, and protocol notes
+```
+
+## Installation
 
 ```bash
+git clone https://github.com/pengsirpick1/DynaPD.git
+cd DynaPD
+python -m pip install -r requirements.txt
+python -m pip install -e .
+```
+
+Five-model evaluation additionally requires a compatible WFlib checkout, CW
+signed-timestamp traces, and clean attacker checkpoints. Place WFlib in
+`wflib_copy/` or expose it through `PYTHONPATH`; provide local dataset and
+checkpoint paths when running evaluation scripts.
+
+## Entry points
+
+```bash
+# Offline multi-surrogate controller
+python scripts/stage_b_run_ensemble_oracle_e2b_completion.py --help
+python scripts/stage_b_run_ensemble_oracle_e2b_rand.py --help
+
+# Streaming DynaPD-RT evaluation
 python streaming_allcw_mp.py --help
 python streaming_allcw_bw_sweep.py --help
 python random_streaming_baseline_bw_sweep.py --help
 ```
 
-`tail1` and the batch full-information controller are ablations/upper bounds,
-not deployment claims. Datasets, clean attacker checkpoints, WFlib code and
-generated defended traces remain excluded from this repository.
+## Scope and responsible interpretation
+
+- DynaPD-RT results in this release are **non-adaptive** attacker evaluations.
+- The RT utility table is **small calibration**, not class-level few-shot
+  learning. It is a global 12-cell phase/direction/dose summary.
+- The delay bound is 64 bins (about 2.84 s per affected packet under the
+  80-second, 1800-bin representation). Page-completion overhead must be
+  measured from untruncated traces; see `scripts/measure_page_completion.py`.
+- No license has been selected yet.
+
+For full reproduction details, see [docs/REPRODUCIBILITY.md](docs/REPRODUCIBILITY.md).
