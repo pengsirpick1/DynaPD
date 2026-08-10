@@ -47,13 +47,13 @@ defended_trace = defend_stream(clean_trace, seed=0, rho=0.25)
 
 以下均为闭世界攻击准确率，数值越低表示防御越强。`WC` 为被评估攻击模型中的最高准确率。
 
-### 离线 DynaPD：CW 512-trace 子集
+### 离线 DynaPD：确定性低带宽版本
 
-| 配置 | RF | DF | AWF | VarCNN held-out | TF held-out | WC |
-|---|---:|---:|---:|---:|---:|---:|
-| `norm_weighted_r80_d10_v10` | 12.70% | 8.40% | 3.32% | 7.03% | 17.77% | 17.77% |
+| 配置 | RF | DF | AWF | VarCNN held-out | TF held-out | WC | 实测带宽开销 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| `norm_weighted_r80_d10_v10` | 12.70% | 8.40% | 3.32% | 7.03% | 17.77% | 17.77% | 6.96% |
 
-### DynaPD-RT：完整 CW 评估（105,730 条 trace）
+### DynaPD-RT：严格因果流式评估
 
 | 版本 | RF | DF | TF | AWF | VarCNN | WC | 实测带宽开销 |
 |---|---:|---:|---:|---:|---:|---:|---:|

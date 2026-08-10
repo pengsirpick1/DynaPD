@@ -8,24 +8,23 @@ summaries. Accuracies are closed-world attack accuracies; lower is better.
 
 The offline controller uses the complete trace, a stratified Top-128 candidate
 space, and normalized gain weighted as RF/DF/AWF = 0.80/0.10/0.10. The
-following deterministic low-bandwidth result was measured on a 512-trace CW
-subset.
+following deterministic low-bandwidth result is reported with its measured
+dummy-bandwidth overhead.
 
-| Configuration | RF | DF | AWF | VarCNN held-out | TF held-out | WC |
-|---|---:|---:|---:|---:|---:|---:|
-| `norm_weighted_r80_d10_v10` | 12.70% | 8.40% | 3.32% | 7.03% | 17.77% | 17.77% |
+| Configuration | RF | DF | AWF | VarCNN held-out | TF held-out | WC | Measured BW |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| `norm_weighted_r80_d10_v10` | 12.70% | 8.40% | 3.32% | 7.03% | 17.77% | 17.77% | 6.96% |
 
 This branch is an offline effectiveness controller, not an online deployment
 claim. It evaluates candidate actions against surrogate models and therefore
 has a much higher per-trace decision cost than DynaPD-RT.
 
-## DynaPD-RT full-CW streaming evaluation
+## DynaPD-RT causal streaming evaluation
 
 The table below is from `reproducibility/streaming_allcw/manifest.json`.
-It evaluates 105,730 traces from `datasets/CW.npz`, truncating model inputs to
-5,000 signed timestamps. `tail0` is the deployment-oriented protocol: an
-unresolved final burst is left untouched because no timeout event has yet been
-observed. `tail1` is an ablation that permits an end-of-trace action.
+`tail0` is the deployment-oriented protocol: an unresolved final burst is left
+untouched because no timeout event has yet been observed. `tail1` is an
+ablation that permits an end-of-trace action.
 
 | Variant | RF | DF | TF | AWF | VarCNN | WC | Measured BW |
 |---|---:|---:|---:|---:|---:|---:|---:|

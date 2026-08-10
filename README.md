@@ -65,13 +65,13 @@ bound rather than a deployment result.
 All values below are closed-world attack accuracies, so lower is better.
 `WC` is the maximum accuracy among the evaluated attack models.
 
-### Offline DynaPD, 512-trace CW subset
+### Offline DynaPD: deterministic low-bandwidth setting
 
-| Configuration | RF | DF | AWF | VarCNN held-out | TF held-out | WC |
-|---|---:|---:|---:|---:|---:|---:|
-| `norm_weighted_r80_d10_v10` | 12.70% | 8.40% | 3.32% | 7.03% | 17.77% | 17.77% |
+| Configuration | RF | DF | AWF | VarCNN held-out | TF held-out | WC | Measured bandwidth |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| `norm_weighted_r80_d10_v10` | 12.70% | 8.40% | 3.32% | 7.03% | 17.77% | 17.77% | 6.96% |
 
-### DynaPD-RT, full CW evaluation (105,730 traces)
+### DynaPD-RT: causal streaming evaluation
 
 | Variant | RF | DF | TF | AWF | VarCNN | WC | Measured bandwidth |
 |---|---:|---:|---:|---:|---:|---:|---:|
