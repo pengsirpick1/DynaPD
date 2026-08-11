@@ -27,15 +27,17 @@ The primary entry point is
 
 ## RT protocol
 
-1. Use `scripts/build_frugal_utility.py` to aggregate offline RF/DF/AWF gain
-   by `(phase, direction, dose)`.
-2. Serialize the compact table to `configs/dynapd_rt_utility.json`.
-3. Run `streaming_state_machine.defend_stream` packet-by-packet. Budget state
-   accumulates over all real packets; burst detection uses the positive
-   download/server-to-client direction under the CW encoding.
-4. Use `streaming_allcw_mp.py` or `streaming_allcw_bw_sweep.py` for a full-CW
-   measurement. Use `random_streaming_baseline_bw_sweep.py` for the matched
-   causal random controls.
+1. Use `scripts/build_event_keypoint_utility.py` to aggregate offline
+   RF/DF/AWF gain by `(phase, direction, burst-duration-bin, burst-volume-bin,
+   allocation-scale)`. The checked-in `configs/dynapd_rt_event_utility.npy`
+   is the compact calibration artifact used by the default controller.
+2. Run `streaming_state_machine.defend_stream` packet-by-packet. Budget state
+   accumulates over all real packets; burst detection and event recognition use
+   only the positive download/server-to-client direction under the CW encoding.
+3. Use `streaming_allcw_mp.py` or `streaming_allcw_bw_sweep.py` for a full-CW
+   measurement. `streaming_state_machine_phase_baseline.py` is retained for
+   the phase-only ablation; use `random_streaming_baseline_bw_sweep.py` for
+   matched causal random controls.
 
 ## Causality checks
 
@@ -51,5 +53,7 @@ packet accesses. `tail1` should be used only as an end-of-trace ablation.
 - `reproducibility/random_streaming_baselines/manifest_partial.json`: matched
   causal random controls currently completed.
 - `reproducibility/dynapd_rt_fullcw_manifest.json`: frozen earlier RT manifest.
+- `reproducibility/event_keypoint_rt_fullcw/`: full-CW event-keypoint RT
+  generation manifest, causality summary, and five-model final evaluation.
 
 All reported accuracy values are lower-is-better WF attacker accuracies.

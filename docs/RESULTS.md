@@ -4,6 +4,25 @@ This page records the results currently backed by the tracked manifests and
 summaries. Accuracies are closed-world attack accuracies; lower is better.
 `WC` is the maximum accuracy over the evaluated attacker set.
 
+## Default event-keypoint RT controller
+
+The repository default, `streaming_state_machine.py`, is the causal
+event-keypoint controller. It maps an ended outgoing burst to an
+offline-calibrated `(phase, out, duration-bin, packet-volume-bin)` utility
+row, then selects a token-budget-compatible allocation scale. On the full CW
+evaluation interval disjoint from its 96-trace calibration interval, it gives:
+
+| Controller | RF | DF | TF | AWF | VarCNN | WC | BWO |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Event-keypoint RT, `tail0` | 11.54% | 15.39% | 11.63% | 10.15% | 16.24% | 16.24% | 16.17% |
+| Phase-only RT, `tail0` baseline | 11.72% | 15.31% | 12.01% | 9.64% | 7.21% | **15.31%** | 16.36% |
+
+The event controller has zero future-packet audit violations. Its current
+duration-and-volume event definition is an online/offline linkage mechanism,
+not a demonstrated accuracy improvement; the full protocol and artifacts are
+in [EVENT_KEYPOINT_RT.md](EVENT_KEYPOINT_RT.md) and
+`reproducibility/event_keypoint_rt_fullcw/`.
+
 ## Offline DynaPD: multi-surrogate teacher
 
 The offline controller uses the complete trace, a stratified Top-128 candidate
@@ -11,9 +30,9 @@ space, and normalized gain weighted as RF/DF/AWF = 0.80/0.10/0.10. The
 following deterministic low-bandwidth result is reported with its measured
 dummy-bandwidth overhead.
 
-| Configuration | RF | DF | AWF | VarCNN held-out | TF held-out | WC | Measured BW |
+| Configuration | RF | DF | TF | AWF | VarCNN | WC | Measured BW |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| `norm_weighted_r80_d10_v10` | 12.70% | 8.40% | 3.32% | 7.03% | 17.77% | 17.77% | 6.96% |
+| `norm_weighted_r80_d10_v10` | 13.36% | 11.41% | 17.55% | 6.47% | 25.60% | 25.60% | 7.19% |
 
 This branch is an offline effectiveness controller, not an online deployment
 claim. It evaluates candidate actions against surrogate models and therefore

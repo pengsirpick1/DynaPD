@@ -28,6 +28,9 @@ stage_a/outputs/
 *.pickle
 *.tar.gz
 
+# Compact, reviewed deployment configuration (not trace data).
+!configs/dynapd_rt_event_utility.npy
+
 # Local/editor/system files
 .codegraph/
 .idea/

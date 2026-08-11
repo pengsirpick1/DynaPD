@@ -4,102 +4,86 @@
 
 **Dynamic Traffic Perturbation against Website Fingerprinting**
 
-DynaPD is a research framework for defending closed-world website fingerprinting
-(WF). It has two complementary branches with deliberately different operating
-assumptions:
+DynaPD is a research framework for closed-world website-fingerprinting (WF)
+defense. Its deployment path, **DynaPD-RT**, compiles expensive offline
+multi-surrogate defense search into a compact burst-event utility table, then
+executes that table causally as traffic arrives. No website label, complete
+trace, or online attacker-model query is required at deployment time.
 
-| Branch | Goal | Information available at decision time |
-|---|---|---|
-| **Offline DynaPD** | High-effectiveness dynamic defense and robustness studies | Complete trace and multi-surrogate feedback |
-| **DynaPD-RT** | Causal, label-free streaming deployment | Current and past packets only |
+CW traces, WFlib source, attacker checkpoints, generated defended traces, and
+logs are intentionally excluded from this repository.
 
-The repository contains source code, compact public configurations, and
-reproducibility records. CW traces, attacker checkpoints, WFlib source,
-generated defended traces, and logs are intentionally excluded.
-
-## Method at a glance
+## Design
 
 ```text
-Offline DynaPD
-complete trace -> candidate generation -> RF / DF / AWF gain evaluation
-               -> constrained action selection -> dummy + delay
+Offline discovery
+complete traces + RF/DF/AWF surrogate gains
+    -> aggregate action utility for observable outgoing-burst events
+    -> (phase, out, duration-bin, packet-volume-bin) -> allocation scale
 
-DynaPD-RT
-arriving packets -> running budget + download-burst state -> utility lookup
-                 -> burst-tail dummy + bounded causal delay
+Online DynaPD-RT
+arriving packets -> token budget + outgoing burst state
+    -> identify an ended local burst event -> utility lookup
+    -> burst-tail dummy injection + bounded causal delay
 ```
 
-### Offline DynaPD
-
-The offline controller builds a stratified Top-128 action set and scores each
-candidate with normalized margin reduction across three complementary WF
-surrogates: RF (TAM/burst), DF (direction sequence), and AWF (burst family).
-The main deterministic setting is `norm_weighted_r80_d10_v10`, with
-RF/DF/AWF weights `0.80/0.10/0.10`.
-
-Randomized selection and bandwidth completion are research variants for
-studying robustness under adaptive attackers. They are not used by the RT
-deployment path.
-
-### DynaPD-RT
-
-DynaPD-RT distills coarse offline experience into a compact utility table
-indexed by `(phase, direction, dose)`. Online execution maintains only packet
-count, positive-direction/download-burst state, consumed token budget, and this
-table. At a burst ending it makes a bounded perturbation decision without a
-website label and without querying RF, DF, AWF, TF, or VarCNN.
+The default controller is [`streaming_state_machine.py`](streaming_state_machine.py).
+At an outgoing/download burst end, it derives a local event type from the
+already observed burst duration and packet volume, then selects an
+offline-calibrated allocation scale. The `tail0` deployment protocol leaves the
+last unresolved burst unchanged unless a real network timeout is observed.
 
 ```python
 from streaming_state_machine import defend_stream
 
-defended_trace = defend_stream(clean_trace, seed=0, rho=0.25)
+defended_trace = defend_stream(clean_trace, seed=0, rho=0.213)
 ```
 
-The deployment-oriented protocol is **`tail0`**: a final unresolved burst is
-not modified unless a real timeout event is available. `tail1` is an
-end-of-trace ablation, while the batch controller is a full-information upper
-bound rather than a deployment result.
+The preceding phase-only implementation is retained as
+[`streaming_state_machine_phase_baseline.py`](streaming_state_machine_phase_baseline.py)
+for ablation and comparison.
 
-## Main results
+## Results
 
-All values below are closed-world attack accuracies, so lower is better.
-`WC` is the maximum accuracy among the evaluated attack models.
+All values are closed-world attacker accuracies; lower is better. `WC` is the
+largest defended accuracy among RF, DF, TF, AWF, and VarCNN.
 
-### Offline DynaPD: deterministic low-bandwidth setting
+### Offline DynaPD reference
 
-| Configuration | RF | DF | AWF | VarCNN held-out | TF held-out | WC | Measured bandwidth |
+The offline reference uses complete traces and normalized RF/DF/AWF gain with
+weights `0.80/0.10/0.10`; it is not an online deployment claim.
+
+| Configuration | RF | DF | TF | AWF | VarCNN | WC | Measured BWO |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| `norm_weighted_r80_d10_v10` | 12.70% | 8.40% | 3.32% | 7.03% | 17.77% | 17.77% | 6.96% |
+| `norm_weighted_r80_d10_v10` | 13.36% | 11.41% | 17.55% | 6.47% | 25.60% | 25.60% | 7.19% |
 
-### DynaPD-RT: causal streaming evaluation
+### DynaPD-RT strict streaming evaluation
 
-| Variant | RF | DF | TF | AWF | VarCNN | WC | Measured bandwidth |
+| Controller | RF | DF | TF | AWF | VarCNN | WC | Measured BWO |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Streaming `tail0` | 11.72% | 15.31% | 12.01% | 9.64% | 7.21% | 15.31% | 16.36% |
-| Streaming `tail1` (ablation) | 10.13% | 13.68% | 10.43% | 8.18% | 6.07% | 13.68% | 17.34% |
-| Batch full-information upper bound | 5.85% | 5.57% | 5.90% | 6.96% | 3.53% | 6.96% | 17.20% |
+| **Event-keypoint RT (`tail0`, default)** | 11.54% | 15.39% | 11.63% | 10.15% | 16.24% | 16.24% | 16.17% |
+| Phase-only RT (`tail0`, baseline) | 11.72% | 15.31% | 12.01% | 9.64% | 7.21% | **15.31%** | 16.36% |
 
-The `tail0` run records zero future-packet accesses in its causality audit.
-Generation used 20 CPU workers and took 1.98 ms/trace amortized; a separate
-single-trace state-machine measurement is approximately 12 ms/trace.
-
-The full bandwidth curve, matched causal random baselines, raw manifests, and
-evaluation boundaries are documented in [docs/RESULTS.md](docs/RESULTS.md).
+The event-keypoint controller was evaluated on 105,634 CW traces disjoint from
+its 96-trace calibration interval. Its causality audit reports zero future
+packet accesses. The event-conditioned design is operationally useful because
+it links the online action to an offline-discovered local burst shape; however,
+under this duration-and-volume schema it is performance-comparable rather than
+superior to the phase-only baseline. See [docs/EVENT_KEYPOINT_RT.md](docs/EVENT_KEYPOINT_RT.md).
 
 ## Repository layout
 
 ```text
-dynapd/                         Core data, padding, objectives, and models
-scripts/                        Offline teacher/search and evaluation scripts
-streaming_state_machine.py      DynaPD-RT causal state machine
-streaming_allcw_mp.py           Full-CW RT evaluation
-streaming_allcw_bw_sweep.py     RT bandwidth sweep
-random_streaming_baseline_bw_sweep.py
-                                 Matched causal random baselines
-configs/dynapd_rt_utility.json  Compact public RT utility table
-reproducibility/                Tracked manifests and run summaries
-docs/RESULTS.md                 Curated experimental record
-docs/REPRODUCIBILITY.md         Data, split, and protocol notes
+dynapd/                                  Core data, objectives, and models
+scripts/build_event_keypoint_utility.py  Offline event-utility calibration
+scripts/                                 Offline teacher/search and evaluation tools
+streaming_state_machine.py               Default event-keypoint RT controller
+streaming_state_machine_phase_baseline.py Phase-only RT baseline
+configs/dynapd_rt_event_utility.npy      Compact published event utility table
+reproducibility/event_keypoint_rt_fullcw/ Full-CW manifests and five-model result
+docs/RESULTS.md                          Curated baseline record
+docs/EVENT_KEYPOINT_RT.md                Event-keypoint experiment record
+docs/REPRODUCIBILITY.md                  Data, split, and protocol notes
 ```
 
 ## Installation
@@ -112,31 +96,28 @@ python -m pip install -e .
 ```
 
 Five-model evaluation additionally requires a compatible WFlib checkout, CW
-signed-timestamp traces, and clean attacker checkpoints. Place WFlib in
+signed-timestamp traces, and clean attacker checkpoints. Put WFlib in
 `wflib_copy/` or expose it through `PYTHONPATH`; provide local dataset and
-checkpoint paths when running evaluation scripts.
+checkpoint paths when evaluating.
 
-## Entry points
+## Reproduction entry points
 
 ```bash
-# Offline multi-surrogate controller
-python scripts/stage_b_run_ensemble_oracle_e2b_completion.py --help
-python scripts/stage_b_run_ensemble_oracle_e2b_rand.py --help
+# Build a new event-conditioned utility artifact from local calibration data.
+python scripts/build_event_keypoint_utility.py --help
 
-# Streaming DynaPD-RT evaluation
-python streaming_allcw_mp.py --help
+# Run the causal RT bandwidth sweep with local CW data and model checkpoints.
 python streaming_allcw_bw_sweep.py --help
-python random_streaming_baseline_bw_sweep.py --help
+
+# Offline multi-surrogate reference controller.
+python scripts/stage_b_run_ensemble_oracle_e2b_completion.py --help
 ```
 
-## Scope and responsible interpretation
+## Scope
 
-- DynaPD-RT results in this release are **non-adaptive** attacker evaluations.
-- The RT utility table is **small calibration**, not class-level few-shot
-  learning. It is a global 12-cell phase/direction/dose summary.
-- The delay bound is 64 bins (about 2.84 s per affected packet under the
-  80-second, 1800-bin representation). Page-completion overhead must be
-  measured from untruncated traces; see `scripts/measure_page_completion.py`.
+- Reported RT results are **non-adaptive attacker** evaluations.
+- The public event table is a global **small-calibration** artifact, not a
+  class-level few-shot model.
+- The maximum delay is 64 bins. Page-completion overhead must be measured from
+  untruncated traces; see `scripts/measure_page_completion.py`.
 - No license has been selected yet.
-
-For full reproduction details, see [docs/REPRODUCIBILITY.md](docs/REPRODUCIBILITY.md).
