@@ -22,24 +22,25 @@ utility 表，并在流量逐包到达时严格因果地执行。在线部署不
 在线 DynaPD-RT
 流量逐包到达 -> token 预算 + 下载 burst 状态
     -> 识别已结束的局部 burst 事件 -> utility 查表
-    -> burst 尾部 dummy 注入 + 有界因果 delay
+    -> timeout 后 dummy 注入 + 仅作用于后续到达包的有界 delay
 ```
 
 默认在线控制器是
-[`streaming_state_machine.py`](streaming_state_machine.py)。每当一个服务器到
-客户端（下载方向）的 burst 结束时，控制器只基于该 burst 已观测到的持续时间和
-包量匹配事件类型，并选择离线校准的分配系数。
+[`streaming_state_machine.py`](streaming_state_machine.py)。当一个服务器到
+客户端（下载方向）的 burst 停止后，控制器等待 5 个 bin 的真实 timeout；timer
+触发时，只基于该 burst 已观测到的持续时间和包量匹配事件类型，并选择离线校准
+的分配系数。dummy 严格在 timeout 之后发送；delay 仅作用于 timeout 激活后才到达
+且尚未发出的包。
 
 ```python
 from streaming_state_machine import defend_stream
 
-defended_trace = defend_stream(clean_trace, seed=0, rho=0.213)
+defended_trace = defend_stream(clean_trace, seed=0, rho=0.35)
 ```
 
 部署协议采用 `tail0`：最后一个尚未由真实网络 timeout 确认结束的 burst 不执行
-动作。旧的 phase-only 实现保留在
-[`streaming_state_machine_phase_baseline.py`](streaming_state_machine_phase_baseline.py)，
-用于消融与对照。
+动作。此前 phase-only 流式实现保留在 Git 历史中；其动作时间语义已被 timeout
+协议取代，不能再作为严格因果基线。
 
 ## 实验结果
 
@@ -59,13 +60,12 @@ defended_trace = defend_stream(clean_trace, seed=0, rho=0.213)
 
 | 控制器 | RF | DF | TF | AWF | VarCNN | WC | 实测 BWO |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| **事件关键点 RT（`tail0`，默认）** | 11.54% | 15.39% | 11.63% | 10.15% | 16.24% | 16.24% | 16.17% |
-| Phase-only RT（`tail0`，基线） | 11.72% | 15.31% | 12.01% | 9.64% | 7.21% | **15.31%** | 16.36% |
+| **Timeout 事件关键点 RT（默认）** | 11.03% | 21.71% | 17.88% | 20.31% | 19.08% | **21.71%** | 15.24% |
 
-事件关键点控制器在与其 96 条校准区间不重叠的 105,634 条 CW trace 上完成评测，
-因果审计记录为零次 future-packet access。当前“持续时间 + 包量”的事件定义与
-phase-only 基线性能接近，但尚未带来可声称的显著提升；它的价值是让在线动作能
-明确对应离线发现的局部 burst 形状。完整记录见
+事件关键点控制器在与其 96 条校准区间不重叠的 105,634 条 CW trace 上完成评测。
+`dummy_before_decision`、`delay_before_activation`、`delay_after_emission` 和
+`future_packet_read` 四项审计均为零。该设计使在线动作明确对应离线发现的局部
+burst 形状。此前存在回填时间戳问题的实现及修正说明见
 [docs/EVENT_KEYPOINT_RT.md](docs/EVENT_KEYPOINT_RT.md)。
 
 ## 仓库结构
@@ -74,10 +74,10 @@ phase-only 基线性能接近，但尚未带来可声称的显著提升；它的
 dynapd/                                   核心数据、目标函数和模型工具
 scripts/build_event_keypoint_utility.py   离线事件 utility 校准脚本
 scripts/                                  离线 Teacher/search 与评估工具
-streaming_state_machine.py                默认事件关键点 RT 控制器
-streaming_state_machine_phase_baseline.py Phase-only RT 基线
-configs/dynapd_rt_event_utility.npy       公开的紧凑事件 utility 表
-reproducibility/event_keypoint_rt_fullcw/ 全量 CW manifest 和五模型结果
+streaming_state_machine.py                timeout 驱动的事件关键点 RT 控制器
+causal_event_renderer.py                  显式时间戳渲染器
+configs/dynapd_rt_event_utility_timeout.npy timeout 事件 utility 表
+reproducibility/event_keypoint_timeout_fullcw/ 修正后的全量 CW 记录
 docs/RESULTS.md                           基线实验记录
 docs/EVENT_KEYPOINT_RT.md                 事件关键点实验记录
 docs/REPRODUCIBILITY.md                   数据、切分和复现协议

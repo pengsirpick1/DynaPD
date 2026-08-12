@@ -30,6 +30,7 @@ stage_a/outputs/
 
 # Compact, reviewed deployment configuration (not trace data).
 !configs/dynapd_rt_event_utility.npy
+!configs/dynapd_rt_event_utility_timeout.npy
 
 # Local/editor/system files
 .codegraph/

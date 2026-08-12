@@ -14,7 +14,6 @@ import sys
 import time
 from collections import defaultdict
 from pathlib import Path
-from types import SimpleNamespace
 
 import numpy as np
 import torch
@@ -26,13 +25,16 @@ sys.path.insert(0, str(ROOT / 'wflib_copy'))
 from dynapd.evaluation.attack_models import build_rf_tam_input
 from dynapd.stage_a.faithfulness import predict_probabilities
 from dynapd.stage_a.modeling import load_stage_a_attacker
-from scripts.stage_b_run_dual_actuator import _render_dummy
+from causal_event_renderer import apply_future_delay, materialize_trace
 from WFlib import models as wm
 
 BINS = 1800
 TRACE_LENGTH = 5000
 MAX_LOAD_TIME = 80.0
 GAP_THRESH = 4
+TIMEOUT_BINS = GAP_THRESH + 1
+MAX_DELAY = 64
+DELAY_WIN = 16
 
 
 def parse_args() -> argparse.Namespace:
@@ -92,8 +94,8 @@ def extract_outgoing_bursts(trace: np.ndarray) -> list[tuple[int, int, int]]:
     return bursts
 
 
-def event_contexts(trace: np.ndarray, rho: float, max_bursts: int) -> list[tuple[int, int, int, int]]:
-    """Return causal burst contexts ending at each observable outgoing burst.
+def event_contexts(trace: np.ndarray, rho: float, max_bursts: int) -> list[tuple[int, int, int, int, int]]:
+    """Return timeout-triggered, causally observable outgoing burst contexts.
 
     Allocation is derived from the same token-bucket state used online: all
     arrived packets contribute to the budget, while only outgoing bursts
@@ -104,9 +106,11 @@ def event_contexts(trace: np.ndarray, rho: float, max_bursts: int) -> list[tuple
     all_slots = np.sort(np.clip(all_slots, 0, BINS - 1))
     contexts: list[tuple[int, int, int, int]] = []
     for ordinal, (start, end, count) in enumerate(extract_outgoing_bursts(trace)[:max_bursts], start=1):
-        observed_packets = int(np.searchsorted(all_slots, end, side='right'))
+        decision_bin = int(end) + TIMEOUT_BINS
+        # The timer fires before a packet at its deadline is processed.
+        observed_packets = int(np.searchsorted(all_slots, decision_bin, side='left'))
         allocation = max(1, int(float(rho) * observed_packets / ordinal))
-        contexts.append((start, end, count, allocation))
+        contexts.append((start, end, count, decision_bin, allocation))
     return contexts
 
 
@@ -115,24 +119,6 @@ def margin(probabilities: np.ndarray, label: int) -> float:
     true_score = float(masked[label])
     masked[label] = -np.inf
     return true_score - float(masked.max())
-
-
-def renderer_args(seed: int) -> SimpleNamespace:
-    return SimpleNamespace(
-        rf_num_slots=BINS,
-        max_trace_length=TRACE_LENGTH,
-        max_delay=0,
-        rounds=8,
-        delay_length=64,
-        delay_rho=1.0,
-        max_load_time=MAX_LOAD_TIME,
-        algorithm='priority',
-        seed=seed,
-        renderer_strategy='priority',
-        renderer_coordinate='absolute',
-        ratio=0.10,
-        max_windows=8,
-    )
 
 
 def wflib_probability(model: torch.nn.Module, trace: np.ndarray, device: torch.device, length: int) -> np.ndarray:
@@ -156,12 +142,22 @@ def event_type(start: int, end: int, packet_count: int, duration_edges: np.ndarr
     return f'd{bucket(duration, duration_edges)}_v{bucket(max(1, packet_count), volume_edges)}'
 
 
-def action_trace(trace: np.ndarray, burst_end: int, dose: int, seed: int) -> np.ndarray:
-    counts = np.zeros((2, BINS), dtype=np.int32)
-    for slot in range(int(burst_end) + 1, min(BINS, int(burst_end) + 1 + int(dose))):
-        counts[0, slot] += 1
-    defended, _tam, _stats = _render_dummy(base_trace=trace, counts=counts, args=renderer_args(seed))
-    return np.pad(defended, (0, max(0, TRACE_LENGTH - len(defended))), mode='constant')[:TRACE_LENGTH]
+def action_trace(trace: np.ndarray, decision_bin: int, dose: int, seed: int) -> np.ndarray:
+    """Simulate a timeout action without rewriting already emitted packets."""
+    delayed, _audit = apply_future_delay(
+        trace,
+        activation_bin=int(decision_bin),
+        window_bins=DELAY_WIN,
+        max_delay_bins=MAX_DELAY,
+        seed=seed,
+    )
+    dummy_start = int(decision_bin) + 1
+    defended, _stats = materialize_trace(
+        delayed,
+        [(int(decision_bin), dummy_start, int(dose))],
+        TRACE_LENGTH,
+    )
+    return defended
 
 
 def summary_entry(values: list[float]) -> dict[str, float | int]:
@@ -188,14 +184,14 @@ def main() -> None:
     if not len(source_indices):
         raise ValueError('empty calibration interval')
 
-    events: list[tuple[int, int, int, int, int]] = []
+    events: list[tuple[int, int, int, int, int, int]] = []
     for source_index in source_indices:
-        for start, stop, count, allocation in event_contexts(traces[source_index], args.rho, args.max_bursts_per_trace):
-            events.append((int(source_index), start, stop, count, allocation))
+        for start, stop, count, decision_bin, allocation in event_contexts(traces[source_index], args.rho, args.max_bursts_per_trace):
+            events.append((int(source_index), start, stop, count, decision_bin, allocation))
     if not events:
         raise RuntimeError('no outgoing bursts in calibration interval')
-    duration_edges = np.quantile([end - start + 1 for _, start, end, _, _ in events], [1 / 3, 2 / 3]).astype(np.float32)
-    volume_edges = np.quantile([count for _, _, _, count, _ in events], [1 / 3, 2 / 3]).astype(np.float32)
+    duration_edges = np.quantile([end - start + 1 for _, start, end, _, _, _ in events], [1 / 3, 2 / 3]).astype(np.float32)
+    volume_edges = np.quantile([count for _, _, _, count, _, _ in events], [1 / 3, 2 / 3]).astype(np.float32)
 
     rf = load_stage_a_attacker(args.rf_checkpoint, attacker='rf', num_classes=95, device=device, max_trace_length=TRACE_LENGTH, rf_num_slots=BINS)
     df = wm.DF(95).to(device)
@@ -208,9 +204,9 @@ def main() -> None:
     gains: dict[tuple[str, str, str, float], list[float]] = defaultdict(list)
     fallback_gains: dict[tuple[str, str, float], list[float]] = defaultdict(list)
     started = time.monotonic()
-    events_by_trace: dict[int, list[tuple[int, int, int, int]]] = defaultdict(list)
-    for source_index, start, end_bin, count, allocation in events:
-        events_by_trace[source_index].append((start, end_bin, count, allocation))
+    events_by_trace: dict[int, list[tuple[int, int, int, int, int]]] = defaultdict(list)
+    for source_index, start, end_bin, count, decision_bin, allocation in events:
+        events_by_trace[source_index].append((start, end_bin, count, decision_bin, allocation))
 
     for completed, source_index in enumerate(source_indices, start=1):
         trace = traces[source_index]
@@ -220,12 +216,12 @@ def main() -> None:
             margin(wflib_probability(df, trace, device, TRACE_LENGTH), label),
             margin(wflib_probability(awf, trace, device, 3000), label),
         )
-        for start, end_bin, count, allocation in events_by_trace[source_index]:
-            phase = phase_of_bin(end_bin)
+        for start, end_bin, count, decision_bin, allocation in events_by_trace[source_index]:
+            phase = phase_of_bin(decision_bin)
             kind = event_type(start, end_bin, count, duration_edges, volume_edges)
             for scale in args.scales:
                 dose = max(1, int(round(float(scale) * allocation)))
-                defended = action_trace(trace, end_bin, dose, seed=args.seed + int(source_index) * 1009 + int(end_bin) * 17 + int(round(scale * 1000)))
+                defended = action_trace(trace, decision_bin, dose, seed=args.seed + int(source_index) * 1009 + int(decision_bin) * 17 + int(round(scale * 1000)))
                 defended_margins = (
                     margin(rf_probability(rf, defended, device), label),
                     margin(wflib_probability(df, defended, device, TRACE_LENGTH), label),
@@ -256,12 +252,15 @@ def main() -> None:
         }
 
     artifact = {
-        'schema': 'dynapd_event_utility_v2',
+        'schema': 'dynapd_event_utility_v3_timeout',
         'calibration_data': str(Path(args.data_root).resolve()),
         'calibration_start': int(args.calibration_start),
         'calibration_end_exclusive': int(end),
         'action_kind': 'allocation_scale',
         'rho': float(args.rho),
+        'timeout_bins': int(TIMEOUT_BINS),
+        'delay_window_bins': int(DELAY_WIN),
+        'max_delay_bins': int(MAX_DELAY),
         'actions': [float(value) for value in args.scales],
         'duration_edges': duration_edges,
         'volume_edges': volume_edges,

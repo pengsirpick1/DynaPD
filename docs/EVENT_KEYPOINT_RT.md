@@ -1,4 +1,28 @@
-# Event-Keypoint DynaPD-RT Pilot Report
+# Event-Keypoint DynaPD-RT Report
+
+> **Important correction (2026-08-12).** Earlier v2 results in this document
+> used a burst-end action timestamp that could precede the packet/time event
+> that confirmed the burst end. They are retained below only as a diagnostic
+> audit trail and are not strict-streaming results. The timeout-driven result
+> in the next section is the only reportable online result.
+
+## Corrected Timeout-Driven Full-CW Result
+
+The controller now closes a burst by a real timer at
+`burst_end + GAP_THRESH + 1`, emits dummy strictly after that timer, and
+delays only real packets arriving after timer activation. It materializes
+dummy at explicit timestamps rather than using the generic trace-index
+renderer.
+
+| Protocol | Traces | RF | DF | TF | AWF | VarCNN | WC | BWO |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Timeout event-keypoint RT, `rho=0.35` | 105,634 | 11.03% | 21.71% | 17.88% | 20.31% | 19.08% | **21.71%** | 15.24% |
+
+Calibration uses `CW[0:96)` and evaluation uses `CW[96:105730)`. The full
+audit reports all of the following as zero: `dummy_before_decision`,
+`delay_before_activation`, `delay_after_emission`, and `future_packet_read`.
+This is the current valid deployment result. It is weaker than the superseded
+backfill result, which quantifies the cost of enforcing real action time.
 
 ## Question
 Does adding an offline-discovered, causal outgoing-burst shape to the DynaPD-RT utility table improve strict streaming defense at equal high bandwidth?
@@ -44,9 +68,9 @@ Allowed wording: the pilot tests an offline-discovered causal event-keypoint ext
 
 Forbidden wording: event-keypoint recognition improves DynaPD-RT, or the current RT mainline already uses validated keypoint detection.
 
-## Full-CW Scaling Check
+## Superseded Backfill Scaling Check
 
-The corrected v2 controller was scaled to the entire available CW export after
+The former v2 controller was scaled to the entire available CW export after
 excluding its calibration interval: `datasets/CW.npz[96:105730)` (105,634
 traces). It uses the low-bandwidth table, target token rate `rho=0.213`,
 18 generation workers, timestamp-preserving export, and the same final RF,
@@ -57,13 +81,9 @@ DF, TF, AWF, and VarCNN (DT2) evaluation protocol as the offline experiments.
 | Phase-only RT (`rho=0.25`) | 105,730 | 16.36% | 11.72% | 15.31% | 12.01% | 9.64% | 7.21% | **15.31%** |
 | Event-keypoint RT v2 (`rho=0.213`) | 105,634 | 16.17% | 11.54% | 15.39% | 11.63% | 10.15% | 16.24% | **16.24%** |
 
-The event-keypoint run preserves strict causality: `0` future-packet audit
-violations across all defended traces. It used a supported event row 2,006,395
-times and fell back to the phase row 492,264 times. At a 0.19 percentage-point
-lower BWO, its WC is 0.93 percentage points higher than the phase-only RT
-baseline; the table therefore confirms the small-pilot finding rather than
-reversing it. The present duration-and-volume event feature should remain an
-ablation, not a claimed accuracy improvement.
+This run's future-packet read audit was zero, but it did not check whether a
+dummy timestamp followed the *actual* decision time. It is superseded and must
+not be cited as strictly causal or used in comparisons.
 
 ## Next Technical Options
 1. Replace fixed absolute `early/mid/late` bins with calibration-derived causal time thresholds; the current calibration events were overwhelmingly in `early`.

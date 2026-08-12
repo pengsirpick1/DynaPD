@@ -24,24 +24,25 @@ complete traces + RF/DF/AWF surrogate gains
 Online DynaPD-RT
 arriving packets -> token budget + outgoing burst state
     -> identify an ended local burst event -> utility lookup
-    -> burst-tail dummy injection + bounded causal delay
+    -> timeout-triggered dummy injection + forward-only bounded delay
 ```
 
 The default controller is [`streaming_state_machine.py`](streaming_state_machine.py).
-At an outgoing/download burst end, it derives a local event type from the
-already observed burst duration and packet volume, then selects an
-offline-calibrated allocation scale. The `tail0` deployment protocol leaves the
-last unresolved burst unchanged unless a real network timeout is observed.
+At an outgoing/download burst end it schedules a real timeout of five bins.
+When that timer fires, it derives a local event type from the already observed
+burst duration and packet volume, then selects an offline-calibrated allocation
+scale. Dummy injection begins strictly after the timeout; delay rules apply
+only to packets arriving after the timer activation.
 
 ```python
 from streaming_state_machine import defend_stream
 
-defended_trace = defend_stream(clean_trace, seed=0, rho=0.213)
+defended_trace = defend_stream(clean_trace, seed=0, rho=0.35)
 ```
 
-The preceding phase-only implementation is retained as
-[`streaming_state_machine_phase_baseline.py`](streaming_state_machine_phase_baseline.py)
-for ablation and comparison.
+Earlier phase-only streaming code is retained only in Git history: its action
+timestamp convention has been superseded by the timeout protocol and it is not
+a valid strict-causality baseline.
 
 ## Results
 
@@ -61,15 +62,14 @@ weights `0.80/0.10/0.10`; it is not an online deployment claim.
 
 | Controller | RF | DF | TF | AWF | VarCNN | WC | Measured BWO |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| **Event-keypoint RT (`tail0`, default)** | 11.54% | 15.39% | 11.63% | 10.15% | 16.24% | 16.24% | 16.17% |
-| Phase-only RT (`tail0`, baseline) | 11.72% | 15.31% | 12.01% | 9.64% | 7.21% | **15.31%** | 16.36% |
+| **Timeout event-keypoint RT (default)** | 11.03% | 21.71% | 17.88% | 20.31% | 19.08% | **21.71%** | 15.24% |
 
 The event-keypoint controller was evaluated on 105,634 CW traces disjoint from
-its 96-trace calibration interval. Its causality audit reports zero future
-packet accesses. The event-conditioned design is operationally useful because
-it links the online action to an offline-discovered local burst shape; however,
-under this duration-and-volume schema it is performance-comparable rather than
-superior to the phase-only baseline. See [docs/EVENT_KEYPOINT_RT.md](docs/EVENT_KEYPOINT_RT.md).
+its 96-trace calibration interval. Its audit reports zero dummy-before-decision,
+delay-before-activation, delay-after-emission, and future-packet-read events.
+The event-conditioned design links online actions to offline-discovered local
+burst shapes. See [docs/EVENT_KEYPOINT_RT.md](docs/EVENT_KEYPOINT_RT.md) for
+the superseded retrospective implementation and the corrected protocol.
 
 ## Repository layout
 
@@ -77,10 +77,10 @@ superior to the phase-only baseline. See [docs/EVENT_KEYPOINT_RT.md](docs/EVENT_
 dynapd/                                  Core data, objectives, and models
 scripts/build_event_keypoint_utility.py  Offline event-utility calibration
 scripts/                                 Offline teacher/search and evaluation tools
-streaming_state_machine.py               Default event-keypoint RT controller
-streaming_state_machine_phase_baseline.py Phase-only RT baseline
-configs/dynapd_rt_event_utility.npy      Compact published event utility table
-reproducibility/event_keypoint_rt_fullcw/ Full-CW manifests and five-model result
+streaming_state_machine.py               Timeout-driven event-keypoint RT controller
+causal_event_renderer.py                 Explicit timestamp materialization
+configs/dynapd_rt_event_utility_timeout.npy Compact timeout event utility table
+reproducibility/event_keypoint_timeout_fullcw/ Corrected full-CW record
 docs/RESULTS.md                          Curated baseline record
 docs/EVENT_KEYPOINT_RT.md                Event-keypoint experiment record
 docs/REPRODUCIBILITY.md                  Data, split, and protocol notes

@@ -1,24 +1,24 @@
 {
   "method": "norm_weighted_r80_d10_v10",
   "defended_shards": [
-    "<local-results>/event_keypoint_fullcw_lowbw/streaming_tail0.npz"
+    "<local-results>/timeout_event_keypoint_fullcw/streaming_timeout_event_keypoint.npz"
   ],
   "timestamp_preserving_export": true,
   "varcnn_feature_note": "DT2 direction plus consecutive absolute timestamp deltas from defended traces",
   "rf_clean_accuracy": 0.9828274987220024,
-  "rf_defended_accuracy": 0.1154173845542155,
+  "rf_defended_accuracy": 0.1102959274476021,
   "df_clean_accuracy": 0.9926917469754056,
-  "df_defended_accuracy": 0.15388037942329175,
+  "df_defended_accuracy": 0.21713652801181438,
   "df_feature": "DIR-5000",
   "tf_clean_accuracy": 0.9721301853569874,
-  "tf_defended_accuracy": 0.11628831626180965,
+  "tf_defended_accuracy": 0.17878713293068518,
   "tf_feature": "DIR-5000",
   "awf_clean_accuracy": 0.9685233920896681,
-  "awf_defended_accuracy": 0.10152034382869152,
+  "awf_defended_accuracy": 0.20309748755135656,
   "awf_feature": "DIR-3000",
   "varcnn_clean_accuracy": 0.9893500198799628,
-  "varcnn_defended_accuracy": 0.16237196357233466,
+  "varcnn_defended_accuracy": 0.19080031050608706,
   "varcnn_feature": "DT2 from actual clean/defended timestamps",
   "samples": 105634,
-  "worst_case_defended_accuracy": 0.16237196357233466
+  "worst_case_defended_accuracy": 0.21713652801181438
 }
