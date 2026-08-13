@@ -1,0 +1,26 @@
+﻿{
+    "method":  "dynapd_rt",
+    "defended_shards":  [
+                            "\u003clocal-results\u003e/dynapd_rt_profiles_fullcw/streaming_dynapd_rt_shard*.npz"
+                        ],
+    "timestamp_preserving_export":  true,
+    "varcnn_feature_note":  "DT2 direction plus consecutive absolute timestamp deltas from defended traces",
+    "subset_protocol":  "fixed first-5000-packet attacker input; only traces with zero known real-packet truncation retained",
+    "physical_audit":  "\u003clocal-results\u003e/dynapd_rt_profiles_fullcw/physical_trace_audit.npz",
+    "rf_clean_accuracy":  0.981375080697224,
+    "rf_defended_accuracy":  0.037712502689907466,
+    "df_clean_accuracy":  0.991876479449107,
+    "df_defended_accuracy":  0.08195610071013557,
+    "df_feature":  "DIR-5000",
+    "tf_clean_accuracy":  0.9706584893479664,
+    "tf_defended_accuracy":  0.06963632451043685,
+    "tf_feature":  "DIR-5000",
+    "awf_clean_accuracy":  0.9683666881859264,
+    "awf_defended_accuracy":  0.10829567462879278,
+    "awf_feature":  "DIR-3000",
+    "varcnn_clean_accuracy":  0.988616311598881,
+    "varcnn_defended_accuracy":  0.08026683882074456,
+    "varcnn_feature":  "DT2 from actual clean/defended timestamps",
+    "samples":  92940,
+    "worst_case_defended_accuracy":  0.10829567462879278
+}

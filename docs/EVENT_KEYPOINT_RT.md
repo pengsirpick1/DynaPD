@@ -1,91 +1,65 @@
-# Event-Keypoint DynaPD-RT Report
+# DynaPD-RT Event-Conditioned Streaming Controller
 
-> **Important correction (2026-08-12).** Earlier v2 results in this document
-> used a burst-end action timestamp that could precede the packet/time event
-> that confirmed the burst end. They are retained below only as a diagnostic
-> audit trail and are not strict-streaming results. The timeout-driven result
-> in the next section is the only reportable online result.
+This document describes the public DynaPD-RT implementation. It supersedes
+earlier experimental controllers that assigned an action timestamp before the
+event at which the burst could actually be confirmed.
 
-## Corrected Timeout-Driven Full-CW Result
+## Runtime State and Offline Utility
 
-The controller now closes a burst by a real timer at
-`burst_end + GAP_THRESH + 1`, emits dummy strictly after that timer, and
-delays only real packets arriving after timer activation. It materializes
-dummy at explicit timestamps rather than using the generic trace-index
-renderer.
+The online state is limited to arrived packet timestamps and directions, the
+current outgoing burst, an elapsed idle timer, and consumed token budget. It
+does not include a website label, a complete trace, or attacker probabilities.
 
-| Protocol | Traces | RF | DF | TF | AWF | VarCNN | WC | BWO |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| Timeout event-keypoint RT, `rho=0.35` | 105,634 | 11.03% | 21.71% | 17.88% | 20.31% | 19.08% | **21.71%** | 15.24% |
+Offline calibration uses complete traces and RF/DF/AWF surrogate margins. It
+aggregates evidence by:
 
-Calibration uses `CW[0:96)` and evaluation uses `CW[96:105730)`. The full
-audit reports all of the following as zero: `dummy_before_decision`,
-`delay_before_activation`, `delay_after_emission`, and `future_packet_read`.
-This is the current valid deployment result. It is weaker than the superseded
-backfill result, which quantifies the cost of enforcing real action time.
+```text
+(phase, out, duration bin, packet-volume bin) -> action profile utility
+```
 
-## Question
-Does adding an offline-discovered, causal outgoing-burst shape to the DynaPD-RT utility table improve strict streaming defense at equal high bandwidth?
+An action profile contains a dummy dose scale and spacing, plus a bounded
+forward delay window. TF and VarCNN do not contribute to the utility table and
+are held-out evaluation attackers.
 
-## Protocol
-- Calibration: `datasets/CW.npz[0:96)`, not used by evaluation.
-- Utility ensemble: RF/DF/AWF with weights `0.8/0.1/0.1`.
-- Event key: `(phase, out, duration_tercile, volume_tercile)`.
-- Action: a learned allocation scale in `{0.50, 0.75, 1.00, 1.25}` multiplied by the causal per-burst token allocation.
-- Event table: 1,395 calibration burst events; 5 event types met `min_support=12`.
-- Evaluation: `datasets/CW.npz[1024:1536)`, 512 traces, strict streaming `tail0`, no label, no full-trace visibility, and no online attack-model query.
-- All attackers consume timestamp-preserving defended traces; VarCNN uses DT2.
+## Strict Time Semantics
 
-## Equal-Bandwidth Result
+For an outgoing burst ending at time bin `b`, DynaPD-RT schedules a timer at:
 
-| Method | BWO | RF | DF | TF | AWF | VarCNN | WC |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| Phase-only RT | 32.11% | 6.05% | 8.98% | 6.45% | 4.10% | 8.01% | **8.98%** |
-| Event-keypoint RT v2 | 32.61% | 5.86% | 8.79% | 5.66% | 4.88% | 9.57% | **9.57%** |
+```text
+decision = b + GAP_THRESH + 1
+```
 
-The BWO difference is 0.50 percentage points, favouring the event-keypoint variant. Despite this, its WC is 0.59 percentage points higher.
+When the timer expires, it selects a profile from the utility table. Dummy
+packets begin at `decision + 1` or later. Delay applies only to a packet that
+arrives after the timer activation and has not been emitted. The implementation
+records four per-trace audit totals:
 
-## Runtime and Causality
-- Event-keypoint actions used supported event rows 9,852 times and phase fallback 2,240 times across the 512 traces.
-- Future-packet audit violations: 0.
-- Parallel generation throughput: about 2.06 ms/trace with 16 workers. This is throughput, not single-trace latency.
+```text
+dummy_before_decision
+delay_before_activation
+delay_after_emission
+future_packet_read
+```
 
-## Low-Bandwidth Repeat
+All four are zero in the current Full-CW record.
 
-The high-bandwidth point was intentionally configured with a large token-bucket rate. To test whether the event mechanism merely depended on extra budget, the experiment was repeated with the low-bandwidth RT operating point.
+## Recorded Full-CW Result
 
-| Method | BWO | RF | DF | TF | AWF | VarCNN | WC |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| Phase-only RT | 15.90% | 10.16% | 14.65% | 11.72% | 9.38% | 16.80% | **16.80%** |
-| Event-keypoint RT v2 | 16.28% | 9.38% | 14.65% | 10.74% | 8.01% | 17.58% | **17.58%** |
+| Traces | RF | DF | TF | AWF | VarCNN | WC | BWO |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 105,634 | 7.01% | 11.41% | 9.87% | 11.96% | 10.18% | **11.96%** | 19.11% |
 
-The low-bandwidth table is also a 512-trace holdout using the same 96-trace calibration interval. The event variant uses 0.38 percentage points more BWO and has a 0.78 percentage point higher WC. It therefore remains an unsupported extension at both tested bandwidth points.
+The calibration interval is `CW[0:96)` and evaluation is `CW[96:105730)`.
+The result uses a fixed-prefix 5,000-packet attacker protocol. See
+[RESULTS.md](RESULTS.md) for the no-known-real-packet-truncation control.
 
-## Decision
-The current duration-and-volume event prototype does **not** improve the phase-only RT baseline at either the low- or high-bandwidth operating point. It must not be claimed as a keypoint contribution or replace the existing RT mainline.
+## Public Files
 
-Allowed wording: the pilot tests an offline-discovered causal event-keypoint extension and finds no improvement under this schema.
-
-Forbidden wording: event-keypoint recognition improves DynaPD-RT, or the current RT mainline already uses validated keypoint detection.
-
-## Superseded Backfill Scaling Check
-
-The former v2 controller was scaled to the entire available CW export after
-excluding its calibration interval: `datasets/CW.npz[96:105730)` (105,634
-traces). It uses the low-bandwidth table, target token rate `rho=0.213`,
-18 generation workers, timestamp-preserving export, and the same final RF,
-DF, TF, AWF, and VarCNN (DT2) evaluation protocol as the offline experiments.
-
-| Method | Traces | BWO | RF | DF | TF | AWF | VarCNN | WC |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| Phase-only RT (`rho=0.25`) | 105,730 | 16.36% | 11.72% | 15.31% | 12.01% | 9.64% | 7.21% | **15.31%** |
-| Event-keypoint RT v2 (`rho=0.213`) | 105,634 | 16.17% | 11.54% | 15.39% | 11.63% | 10.15% | 16.24% | **16.24%** |
-
-This run's future-packet read audit was zero, but it did not check whether a
-dummy timestamp followed the *actual* decision time. It is superseded and must
-not be cited as strictly causal or used in comparisons.
-
-## Next Technical Options
-1. Replace fixed absolute `early/mid/late` bins with calibration-derived causal time thresholds; the current calibration events were overwhelmingly in `early`.
-2. Add a preceding-gap feature only after increasing calibration support, then compare it with a traffic-matched randomized event-type control.
-3. Keep phase-only burst-event utility as the paper mainline unless a held-out, equal-BWO experiment reverses this result.
+- [`../streaming_state_machine.py`](../streaming_state_machine.py): online
+  state machine.
+- [`../causal_event_renderer.py`](../causal_event_renderer.py): explicit
+  timestamp-preserving merge of real and dummy packets.
+- [`../scripts/build_event_keypoint_utility.py`](../scripts/build_event_keypoint_utility.py):
+  offline utility calibration.
+- [`../configs/dynapd_rt_event_utility.npy`](../configs/dynapd_rt_event_utility.npy):
+  checked-in global utility artifact.

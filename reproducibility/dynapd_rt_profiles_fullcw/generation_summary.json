@@ -1,0 +1,52 @@
+﻿{
+    "controller":  "dynapd_rt_timeout_event_profiles_fixed_budget",
+    "causality_mode":  "timer_triggered_forward_only",
+    "samples":  105634,
+    "source_start":  96,
+    "source_end_exclusive":  105730,
+    "rho":  0.35,
+    "utility":  "configs/dynapd_rt_event_utility.npy",
+    "chunks":  52,
+    "workers":  18,
+    "mean_actual_bandwidth":  0.19109522488698003,
+    "mean_dummy_packets":  351.48125603498875,
+    "mean_delay_rules":  23.054064032413805,
+    "mean_delayed_packets":  1736.9877217562528,
+    "event_keypoint_hits":  2499459,
+    "event_keypoint_fallbacks":  0,
+    "profile_counts":  {
+                           "compact":  0,
+                           "spread":  181673,
+                           "delay_heavy":  2034702,
+                           "strong":  218918
+                       },
+    "physical_trace_audit":  {
+                                 "packet_conservation":  "full defended stream retains every input packet; classifier input is its fixed first-5000-packet prefix",
+                                 "completion_delta_seconds":  {
+                                                                  "mean":  4.783165435674411,
+                                                                  "p50":  4.648113250732422,
+                                                                  "p95":  8.841151046752925,
+                                                                  "max":  50.81187060887844
+                                                              },
+                                 "negative_completion_delta_count":  0,
+                                 "attack_input_real_packet_truncation":  {
+                                                                             "affected_traces":  12694,
+                                                                             "mean_packets":  36.31768180699396,
+                                                                             "p95_packets":  285.0,
+                                                                             "max_packets":  1310
+                                                                         },
+                                 "attack_input_dummy_packet_truncation":  {
+                                                                              "affected_traces":  12297,
+                                                                              "mean_packets":  33.546897779124144,
+                                                                              "p95_packets":  228.0,
+                                                                              "max_packets":  1648
+                                                                          }
+                             },
+    "audit":  {
+                  "dummy_before_decision":  0,
+                  "delay_before_activation":  0,
+                  "delay_after_emission":  0,
+                  "future_packet_read":  0
+              },
+    "parallel_generation_ms_per_trace":  1.369707466733631
+}

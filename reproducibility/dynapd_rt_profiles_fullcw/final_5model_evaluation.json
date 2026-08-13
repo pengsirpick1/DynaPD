@@ -1,0 +1,24 @@
+﻿{
+    "method":  "dynapd_rt",
+    "defended_shards":  [
+                            "\u003clocal-results\u003e/dynapd_rt_profiles_fullcw/streaming_dynapd_rt_shard*.npz"
+                        ],
+    "timestamp_preserving_export":  true,
+    "varcnn_feature_note":  "DT2 direction plus consecutive absolute timestamp deltas from defended traces",
+    "rf_clean_accuracy":  0.9828274987220024,
+    "rf_defended_accuracy":  0.07013840240831551,
+    "df_clean_accuracy":  0.9926917469754056,
+    "df_defended_accuracy":  0.11407312039684192,
+    "df_feature":  "DIR-5000",
+    "tf_clean_accuracy":  0.9721301853569874,
+    "tf_defended_accuracy":  0.09870874907700172,
+    "tf_feature":  "DIR-5000",
+    "awf_clean_accuracy":  0.9685233920896681,
+    "awf_defended_accuracy":  0.11961111005926123,
+    "awf_feature":  "DIR-3000",
+    "varcnn_clean_accuracy":  0.9893500198799628,
+    "varcnn_defended_accuracy":  0.10175701005358123,
+    "varcnn_feature":  "DT2 from actual clean/defended timestamps",
+    "samples":  105634,
+    "worst_case_defended_accuracy":  0.11961111005926123
+}

@@ -69,6 +69,9 @@ def materialize_trace(
     """
     real = np.asarray(delayed_real_trace, dtype=np.float32).reshape(-1)
     real_values = real[real != 0]
+    # The complete defended packet stream is the physical object.  A later
+    # fixed-length classifier view may truncate it, but must never be confused
+    # with the packet-conserving network trace or its completion time.
     values: list[tuple[float, int, int, float]] = []
     for serial, value in enumerate(real_values.tolist()):
         values.append((abs(float(value)), 1, serial, float(value)))
@@ -83,10 +86,22 @@ def materialize_trace(
             serial += 1
             dummy_count += 1
     values.sort(key=lambda item: (item[0], item[1], item[2]))
-    merged = np.asarray([item[3] for item in values], dtype=np.float32)
-    merged = np.pad(merged, (0, max(0, int(trace_length) - len(merged))))[: int(trace_length)]
+    full_values = np.asarray([item[3] for item in values], dtype=np.float32)
+    attack_values = full_values[: int(trace_length)]
+    merged = np.pad(attack_values, (0, max(0, int(trace_length) - len(attack_values))))
+    retained = values[: int(trace_length)]
+    retained_real = sum(1 for item in retained if item[1] == 1)
+    retained_dummy = len(retained) - retained_real
+    full_completion = float(max((item[0] for item in values), default=0.0))
     return merged, {
         "raw_bandwidth": float(dummy_count / max(1, len(real_values))),
         "dummy_packets": int(dummy_count),
         "original_packets": int(len(real_values)),
+        "defended_packets_total": int(len(values)),
+        "defended_completion_time": full_completion,
+        "attack_input_packets": int(len(attack_values)),
+        "attack_input_real_packets": int(retained_real),
+        "attack_input_dummy_packets": int(retained_dummy),
+        "real_packets_truncated_for_attack_input": int(len(real_values) - retained_real),
+        "dummy_packets_truncated_for_attack_input": int(dummy_count - retained_dummy),
     }
